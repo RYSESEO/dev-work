@@ -1,0 +1,67 @@
+import type { JSX } from 'react';
+
+import { useEffect, useState } from 'react';
+import type { DashboardSnapshot } from '../../shared/domain';
+import { commandCenterClient } from './api/client';
+import { AgentsView } from './components/AgentsView';
+import { CostUsageView } from './components/CostUsageView';
+import { MissionControl } from './components/MissionControl';
+import { SettingsView } from './components/SettingsView';
+import { TabNav, type AppTab } from './components/TabNav';
+import { TasksView } from './components/TasksView';
+
+export function App(): JSX.Element {
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<AppTab>('mission');
+
+  async function refresh(): Promise<void> {
+    try {
+      setSnapshot(await commandCenterClient.getSnapshot());
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load dashboard.');
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  if (error) {
+    return (
+      <main className="app-shell app-shell-centered">
+        <section className="notice error">
+          <span className="notice-kicker">Renderer issue</span>
+          <strong>{error}</strong>
+        </section>
+      </main>
+    );
+  }
+
+  if (!snapshot) {
+    return (
+      <main className="app-shell app-shell-centered">
+        <section className="notice skeleton-notice" aria-live="polite">
+          <span className="notice-kicker">Starting workspace</span>
+          <strong>Loading command center...</strong>
+          <span className="skeleton-line" />
+          <span className="skeleton-line short" />
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <div className="product-frame">
+      <TabNav active={activeTab} onChange={setActiveTab} />
+      {activeTab === 'mission' && <MissionControl snapshot={snapshot} onRefresh={refresh} />}
+      {activeTab === 'agents' && <AgentsView snapshot={snapshot} />}
+      {activeTab === 'tasks' && <TasksView snapshot={snapshot} />}
+      {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
+      {activeTab === 'settings' && <SettingsView snapshot={snapshot} />}
+    </div>
+  );
+}
