@@ -46,7 +46,7 @@ export interface AgentProfile {
   failureCount: number;
 }
 
-export interface RunnerProfile {
+export interface CommandRunnerProfile {
   id: string;
   name: string;
   type: 'command';
@@ -56,6 +56,20 @@ export interface RunnerProfile {
   env: Record<string, string>;
   costPerThousandTokensUsd: number;
 }
+
+export interface OpenAIRunnerProfile {
+  id: string;
+  name: string;
+  type: 'openai';
+  model: string;
+  workspacePath: string;
+  env: Record<string, string>;
+  costPerThousandTokensUsd: number;
+  maxTokens: number;
+  systemPrompt: string;
+}
+
+export type RunnerProfile = CommandRunnerProfile | OpenAIRunnerProfile;
 
 export interface Run {
   id: string;

@@ -5,7 +5,9 @@ import type { Runner, RunnerHandle, RunnerResult, RunnerStartRequest } from './t
 
 export class CommandRunner implements Runner {
   async start(request: RunnerStartRequest): Promise<RunnerHandle> {
-    const child = spawn(request.profile.command, request.profile.args, {
+    const profile = request.profile;
+    if (profile.type !== 'command') throw new Error(`CommandRunner requires a 'command' profile, got '${profile.type}'`);
+    const child = spawn(profile.command, profile.args, {
       cwd: request.profile.workspacePath,
       env: {
         ...process.env,

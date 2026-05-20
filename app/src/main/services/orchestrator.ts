@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AppStore } from '../db/appStore.js';
 import { CommandRunner } from '../runners/commandRunner.js';
-import type { RunnerHandle } from '../runners/types.js';
+import { OpenAIRunner } from '../runners/openaiRunner.js';
+import type { Runner, RunnerHandle } from '../runners/types.js';
 import type { RunnerToHostMessage } from '../../shared/runnerProtocol.js';
 import { findMatchingGrant } from './approvalPolicy.js';
 import {
@@ -34,7 +35,10 @@ export interface Orchestrator {
 
 export async function createOrchestrator(store: AppStore): Promise<Orchestrator> {
   seedDefaults(store);
-  const runner = new CommandRunner();
+  const runners: Record<string, Runner> = {
+    command: new CommandRunner(),
+    openai: new OpenAIRunner()
+  };
   const handles = new Map<string, RunnerHandle>();
   const seenRunEvents = new Map<string, Set<string>>();
   const waiters = new Map<
@@ -264,7 +268,10 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       store.put('agents', agent.id, { ...agent, status: 'running' });
       addEvent(run.id, task.id, 'Run started', `${agent.name} started ${task.title}.`);
 
-      const handle = await runner.start({
+      const selectedRunner = runners[profile.type];
+      if (!selectedRunner) throw new Error(`No runner available for type: ${profile.type}`);
+
+      const handle = await selectedRunner.start({
         runId: run.id,
         prompt,
         profile,
