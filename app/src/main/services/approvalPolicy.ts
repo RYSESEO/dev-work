@@ -1,4 +1,3 @@
-import path from 'node:path';
 import type { ApprovalGrant, ApprovalRequest, ApprovalScope } from '../../shared/domain.js';
 
 export function grantMatchesRequest(grant: ApprovalGrant, request: ApprovalRequest): boolean {
@@ -42,9 +41,9 @@ function sameOrInside(childPath: string, parentPath: string): boolean {
   const normalizedChild = normalizePath(childPath);
   const normalizedParent = normalizePath(parentPath);
 
-  return normalizedChild === normalizedParent || normalizedChild.startsWith(`${normalizedParent}${path.sep}`);
+  return normalizedChild === normalizedParent || normalizedChild.startsWith(`${normalizedParent}/`);
 }
 
 function normalizePath(value: string): string {
-  return path.resolve(value).toLowerCase();
+  return value.replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
 }

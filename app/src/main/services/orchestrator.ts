@@ -206,6 +206,8 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       };
     },
     createMission(title: string, goal: string): Mission {
+      if (!title.trim()) throw new Error('Mission title is required.');
+      if (!goal.trim()) throw new Error('Mission goal is required.');
       const at = nowIso();
       const mission: Mission = {
         id: createId('mission'),
@@ -219,6 +221,7 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       return mission;
     },
     createTask(missionId: string | null, title: string, description: string, priority: Task['priority'] = 'normal'): Task {
+      if (!title.trim()) throw new Error('Task title is required.');
       const at = nowIso();
       const task: Task = {
         id: createId('task'),
@@ -385,6 +388,7 @@ function appendRunLog(runId: string | null, line: string): void {
   if (!runId || process.env.VITEST) return;
 
   const logDir = path.join(process.cwd(), 'logs');
-  fs.mkdirSync(logDir, { recursive: true });
-  fs.appendFileSync(path.join(logDir, `${runId}.log`), `${new Date().toISOString()} ${line}\n`);
+  void fs.promises.mkdir(logDir, { recursive: true }).then(() =>
+    fs.promises.appendFile(path.join(logDir, `${runId}.log`), `${new Date().toISOString()} ${line}\n`)
+  );
 }

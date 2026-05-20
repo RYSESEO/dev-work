@@ -18,7 +18,8 @@ export function OneClickLaunchers({ snapshot, onRefresh }: Props) {
     const agent = snapshot.agents.find((item) => item.role === template.recommendedAgentRole) ?? snapshot.agents[0];
     if (!agent) return;
 
-    const workspacePath = snapshot.runnerProfiles[0]?.workspacePath ?? '';
+    const runnerProfile = snapshot.runnerProfiles.find((p) => p.id === agent.runnerProfileId);
+    const workspacePath = runnerProfile?.workspacePath ?? snapshot.runnerProfiles[0]?.workspacePath ?? '';
     const prompt = template.promptTemplate
       .replaceAll('{{workspacePath}}', workspacePath)
       .replaceAll('{{userInput}}', snapshot.missions[0]?.goal ?? '');

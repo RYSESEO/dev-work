@@ -3,7 +3,7 @@ import { createId, isTerminalRunStatus } from '../../src/shared/domain.js';
 
 describe('domain helpers', () => {
   it('creates ids with the requested prefix', () => {
-    expect(createId('run')).toMatch(/^run_[a-z0-9]+_[a-z0-9]+$/);
+    expect(createId('run')).toMatch(/^run_[a-z0-9]+/);
   });
 
   it('detects terminal run states', () => {

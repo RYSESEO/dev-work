@@ -2,7 +2,13 @@ import { Bot } from 'lucide-react';
 import type { DashboardSnapshot } from '../../../shared/domain';
 
 export function AgentsView({ snapshot }: { snapshot: DashboardSnapshot }) {
-  const runsByAgent = new Map(snapshot.runs.map((run) => [run.agentProfileId, run]));
+  const runsByAgent = new Map<string, typeof snapshot.runs[number]>();
+  for (const run of snapshot.runs) {
+    const existing = runsByAgent.get(run.agentProfileId);
+    if (!existing || (run.startedAt ?? '') > (existing.startedAt ?? '')) {
+      runsByAgent.set(run.agentProfileId, run);
+    }
+  }
 
   return (
     <main className="app-shell">

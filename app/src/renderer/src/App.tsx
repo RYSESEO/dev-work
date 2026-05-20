@@ -26,8 +26,35 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 1000);
-    return () => window.clearInterval(timer);
+    let timer: number | null = null;
+
+    function startPolling(): void {
+      stopPolling();
+      timer = window.setInterval(() => void refresh(), 3000);
+    }
+
+    function stopPolling(): void {
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    function handleVisibility(): void {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void refresh();
+        startPolling();
+      }
+    }
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   if (error) {
