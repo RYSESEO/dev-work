@@ -74,13 +74,28 @@ cd app
 npm run build      # Type-check + production build
 ```
 
-### Test
+### Test & Lint
 
 ```bash
 cd app
 npm test           # Run all tests (Vitest)
 npm run typecheck  # Type-check only
 npm run test:watch # Watch mode
+npm run lint       # ESLint
+npm run lint:fix   # ESLint with auto-fix
+npm run format     # Prettier format
+npm run format:check # Prettier check
+```
+
+### Package for Distribution
+
+```bash
+cd app
+npm run pack       # Build + package (unpacked, for testing)
+npm run dist       # Build + package installers for current platform
+npm run dist:win   # Windows (NSIS + portable)
+npm run dist:mac   # macOS (DMG)
+npm run dist:linux # Linux (AppImage + deb)
 ```
 
 ## Project Structure
@@ -97,7 +112,8 @@ app/
 │   │   │   └── appStore.ts      # SQLite persistence (sql.js)
 │   │   ├── runners/
 │   │   │   ├── types.ts         # Runner interfaces
-│   │   │   └── commandRunner.ts # Local command runner
+│   │   │   ├── commandRunner.ts # Local command runner
+│   │   │   └── openaiRunner.ts  # OpenAI API runner
 │   │   └── services/
 │   │       ├── orchestrator.ts  # Mission/task/run coordination
 │   │       └── approvalPolicy.ts# Session-scoped approval matching
@@ -146,6 +162,17 @@ app/
 ├── electron.vite.config.ts
 └── vitest.config.ts
 ```
+
+## Runners
+
+The orchestrator supports pluggable runners via the `Runner` interface. Each runner profile specifies a `type` that determines which runner handles it:
+
+| Runner | Type | Description |
+|--------|------|-------------|
+| `CommandRunner` | `command` | Spawns a local child process, communicates via NDJSON over stdin/stdout |
+| `OpenAIRunner` | `openai` | Calls the OpenAI Chat Completions API (requires `OPENAI_API_KEY`) |
+
+To add a new runner, implement the `Runner` interface in `src/main/runners/`, add a corresponding profile type to `domain.ts`, and register it in the orchestrator's `runners` map.
 
 ## Runner Protocol
 
