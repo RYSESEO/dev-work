@@ -1,4 +1,4 @@
-import { ChevronDown, Command, RefreshCw } from 'lucide-react';
+import { Command, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import type { DashboardSnapshot } from '../../../shared/domain';
 import { ActivityTimeline } from './ActivityTimeline';

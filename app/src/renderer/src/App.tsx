@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { DashboardSnapshot } from '../../shared/domain';
 import { commandCenterClient } from './api/client';
 import { AgentsView } from './components/AgentsView';
@@ -15,22 +15,25 @@ export function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>('mission');
 
-  async function refresh(): Promise<void> {
+  const refresh = useCallback(async (): Promise<void> => {
     try {
       setSnapshot(await commandCenterClient.getSnapshot());
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load dashboard.');
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void refresh();
     let timer: number | null = null;
+
+    function poll(): void {
+      void refresh();
+    }
 
     function startPolling(): void {
       stopPolling();
-      timer = window.setInterval(() => void refresh(), 3000);
+      timer = window.setInterval(poll, 3000);
     }
 
     function stopPolling(): void {
@@ -44,18 +47,19 @@ export function App(): JSX.Element {
       if (document.hidden) {
         stopPolling();
       } else {
-        void refresh();
+        poll();
         startPolling();
       }
     }
 
+    poll();
     startPolling();
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       stopPolling();
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [refresh]);
 
   if (error) {
     return (
