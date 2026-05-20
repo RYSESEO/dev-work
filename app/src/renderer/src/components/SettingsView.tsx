@@ -34,8 +34,8 @@ export function SettingsView({ snapshot }: { snapshot: DashboardSnapshot }) {
             {snapshot.runnerProfiles.map((profile) => (
               <tr key={profile.id}>
                 <td>{profile.name}</td>
-                <td>{profile.command}</td>
-                <td>{profile.args.join(' ')}</td>
+                <td>{profile.type === 'command' ? profile.command : profile.model}</td>
+                <td>{profile.type === 'command' ? profile.args.join(' ') : profile.type}</td>
                 <td>{profile.workspacePath}</td>
                 <td>${profile.costPerThousandTokensUsd.toFixed(4)} / 1K tokens</td>
               </tr>
