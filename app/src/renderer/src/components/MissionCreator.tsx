@@ -7,7 +7,8 @@ export function MissionCreator({ onRefresh }: { onRefresh(): Promise<void> }) {
   const [goal, setGoal] = useState('Coordinate agents to plan, implement, verify, and summarize the work.');
 
   async function submit(): Promise<void> {
-    await commandCenterClient.createMission(title, goal);
+    if (!title.trim() || !goal.trim()) return;
+    await commandCenterClient.createMission(title.trim(), goal.trim());
     await onRefresh();
   }
 

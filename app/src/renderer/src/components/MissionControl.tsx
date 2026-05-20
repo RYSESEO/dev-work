@@ -1,4 +1,5 @@
-import { Command, RefreshCw } from 'lucide-react';
+import { ChevronDown, Command, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import type { DashboardSnapshot } from '../../../shared/domain';
 import { ActivityTimeline } from './ActivityTimeline';
 import { AgentRoster } from './AgentRoster';
@@ -14,7 +15,8 @@ interface Props {
 }
 
 export function MissionControl({ snapshot, onRefresh }: Props) {
-  const mission = snapshot.missions[0];
+  const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
+  const mission = snapshot.missions.find((m) => m.id === activeMissionId) ?? snapshot.missions[0] ?? null;
   const activeRuns = snapshot.runs.filter((run) => run.status === 'running' || run.status === 'paused_for_approval').length;
   const pendingApprovals = snapshot.approvals.filter((approval) => approval.status === 'pending').length;
 
@@ -24,6 +26,18 @@ export function MissionControl({ snapshot, onRefresh }: Props) {
         <div className="command-copy">
           <span className="section-label">Mission Studio</span>
           <h1>{mission?.title ?? 'No active mission'}</h1>
+          {snapshot.missions.length > 1 && (
+            <select
+              className="mission-selector"
+              value={mission?.id ?? ''}
+              onChange={(e) => setActiveMissionId(e.target.value)}
+              aria-label="Select mission"
+            >
+              {snapshot.missions.map((m) => (
+                <option key={m.id} value={m.id}>{m.title}</option>
+              ))}
+            </select>
+          )}
           <p className="mission-goal">{mission?.goal ?? 'Create a mission to begin coordinating agents.'}</p>
         </div>
         <div className="command-actions">

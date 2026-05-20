@@ -4,7 +4,12 @@ const input = readline.createInterface({ input: process.stdin });
 const waiters = new Map();
 
 input.on('line', (line) => {
-  const message = JSON.parse(line);
+  let message;
+  try {
+    message = JSON.parse(line);
+  } catch {
+    return;
+  }
   if (message.type === 'approval_result') {
     const resolve = waiters.get(message.requestId);
     if (resolve) {

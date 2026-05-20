@@ -145,7 +145,10 @@ export interface DashboardSnapshot {
 }
 
 export function createId(prefix: IdPrefix): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const uuid = typeof globalThis.crypto?.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID().replace(/-/g, '')
+    : `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+  return `${prefix}_${uuid}`;
 }
 
 export function nowIso(): string {

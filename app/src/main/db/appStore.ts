@@ -1,4 +1,5 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import initSqlJs from 'sql.js';
@@ -44,7 +45,7 @@ export async function createAppStore(databasePath: string): Promise<AppStore> {
     locateFile: () => wasmPath
   });
   const isMemory = databasePath === ':memory:';
-  const existing = !isMemory && fs.existsSync(databasePath) ? fs.readFileSync(databasePath) : undefined;
+  const existing = !isMemory && existsSync(databasePath) ? readFileSync(databasePath) : undefined;
   const db = existing ? new SQL.Database(existing) : new SQL.Database();
 
   db.run(`
@@ -57,10 +58,16 @@ export async function createAppStore(databasePath: string): Promise<AppStore> {
     )
   `);
 
+  let persistQueued = false;
   function persist(): void {
-    if (isMemory) return;
-    fs.mkdirSync(path.dirname(databasePath), { recursive: true });
-    fs.writeFileSync(databasePath, Buffer.from(db.export()));
+    if (isMemory || persistQueued) return;
+    persistQueued = true;
+    queueMicrotask(() => {
+      persistQueued = false;
+      void fs.mkdir(path.dirname(databasePath), { recursive: true }).then(() =>
+        fs.writeFile(databasePath, Buffer.from(db.export()))
+      );
+    });
   }
 
   return {

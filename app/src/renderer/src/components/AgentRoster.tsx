@@ -2,7 +2,14 @@ import { Bot } from 'lucide-react';
 import type { DashboardSnapshot } from '../../../shared/domain';
 
 export function AgentRoster({ snapshot }: { snapshot: DashboardSnapshot }) {
-  const activeRunByAgent = new Map(snapshot.runs.map((run) => [run.agentProfileId, run]));
+  const activeRunByAgent = new Map<string, typeof snapshot.runs[number]>();
+  for (const run of snapshot.runs) {
+    if (run.status !== 'running' && run.status !== 'paused_for_approval') continue;
+    const existing = activeRunByAgent.get(run.agentProfileId);
+    if (!existing || (run.startedAt ?? '') > (existing.startedAt ?? '')) {
+      activeRunByAgent.set(run.agentProfileId, run);
+    }
+  }
 
   return (
     <section className="panel compact-panel">

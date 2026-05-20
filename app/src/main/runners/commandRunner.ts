@@ -33,13 +33,21 @@ export class CommandRunner implements Runner {
       child.on('exit', (exitCode, signal) => resolve({ exitCode, signal }));
     });
 
+    function safeWrite(data: string): void {
+      try {
+        if (!child.stdin.destroyed) child.stdin.write(data);
+      } catch {
+        // Child process already exited
+      }
+    }
+
     return {
       done,
       send(message: HostToRunnerMessage): void {
-        child.stdin.write(`${JSON.stringify(message)}\n`);
+        safeWrite(`${JSON.stringify(message)}\n`);
       },
       stop(reason: string): void {
-        child.stdin.write(`${JSON.stringify({ type: 'stop', reason } satisfies HostToRunnerMessage)}\n`);
+        safeWrite(`${JSON.stringify({ type: 'stop', reason } satisfies HostToRunnerMessage)}\n`);
         child.kill();
       }
     };

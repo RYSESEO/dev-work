@@ -23,7 +23,7 @@
   --shadow-soft: 0 16px 48px rgba(36, 57, 55, 0.08);
   color: var(--text);
   background: var(--bg);
-  font-family: "Geist", "Satoshi", "Outfit", "Aptos", "Segoe UI", system-ui, sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -225,6 +225,21 @@ p {
   font-weight: 780;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.mission-selector {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 680;
+  cursor: pointer;
+  width: fit-content;
 }
 
 .mission-goal,
