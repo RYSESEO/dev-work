@@ -4,11 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import type { DashboardSnapshot } from '../../shared/domain';
 import { commandCenterClient } from './api/client';
 import { AgentsView } from './components/AgentsView';
+import { AnalyticsView } from './components/AnalyticsView';
 import { CostUsageView } from './components/CostUsageView';
+import { MarketplaceView } from './components/MarketplaceView';
 import { MissionControl } from './components/MissionControl';
+import { SecurityView } from './components/SecurityView';
 import { SettingsView } from './components/SettingsView';
 import { TabNav, type AppTab } from './components/TabNav';
 import { TasksView } from './components/TasksView';
+import { TeamView } from './components/TeamView';
+import { WorkflowsView } from './components/WorkflowsView';
 
 export function App(): JSX.Element {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -91,6 +96,11 @@ export function App(): JSX.Element {
       {activeTab === 'mission' && <MissionControl snapshot={snapshot} onRefresh={refresh} />}
       {activeTab === 'agents' && <AgentsView snapshot={snapshot} />}
       {activeTab === 'tasks' && <TasksView snapshot={snapshot} />}
+      {activeTab === 'workflows' && <WorkflowsView snapshot={snapshot} onRefresh={refresh} />}
+      {activeTab === 'marketplace' && <MarketplaceView snapshot={snapshot} onRefresh={refresh} />}
+      {activeTab === 'analytics' && <AnalyticsView />}
+      {activeTab === 'team' && <TeamView snapshot={snapshot} onRefresh={refresh} />}
+      {activeTab === 'security' && <SecurityView snapshot={snapshot} onRefresh={refresh} />}
       {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
       {activeTab === 'settings' && <SettingsView snapshot={snapshot} />}
     </div>

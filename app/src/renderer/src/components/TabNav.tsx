@@ -3,16 +3,26 @@ import {
   BarChart3,
   Bot,
   ClipboardCheck,
+  GitBranch,
+  Package,
   Settings,
+  Shield,
+  TrendingUp,
+  Users,
   type LucideIcon
 } from 'lucide-react';
 
-export type AppTab = 'mission' | 'agents' | 'tasks' | 'usage' | 'settings';
+export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'marketplace' | 'analytics' | 'team' | 'security' | 'usage' | 'settings';
 
 const tabs: Array<{ id: AppTab; label: string; icon: LucideIcon }> = [
   { id: 'mission', label: 'Mission Control', icon: Activity },
   { id: 'agents', label: 'Agents', icon: Bot },
   { id: 'tasks', label: 'Tasks', icon: ClipboardCheck },
+  { id: 'workflows', label: 'Workflows', icon: GitBranch },
+  { id: 'marketplace', label: 'Marketplace', icon: Package },
+  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+  { id: 'team', label: 'Team', icon: Users },
+  { id: 'security', label: 'Security', icon: Shield },
   { id: 'usage', label: 'Usage', icon: BarChart3 },
   { id: 'settings', label: 'Settings', icon: Settings }
 ];
