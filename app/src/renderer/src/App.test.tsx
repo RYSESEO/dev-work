@@ -79,7 +79,15 @@ const snapshot: DashboardSnapshot = {
       body: 'Run tests'
     }
   ],
-  artifacts: []
+  artifacts: [],
+  marketplace: [],
+  plugins: [],
+  users: [],
+  workflows: [],
+  workflowRuns: [],
+  currentUser: null,
+  analytics: null,
+  sandboxConfig: { enabled: false, runtime: 'none', image: '', memoryLimitMb: 512, cpuLimit: 1, networkAccess: false, mountPaths: [], timeoutSeconds: 300 }
 };
 
 beforeEach(() => {
@@ -89,7 +97,18 @@ beforeEach(() => {
     createTask: vi.fn(),
     launchRun: vi.fn(),
     approveRequest: vi.fn(),
-    rejectRequest: vi.fn()
+    rejectRequest: vi.fn(),
+    installMarketplaceEntry: vi.fn(),
+    uninstallMarketplaceEntry: vi.fn(),
+    togglePlugin: vi.fn(),
+    addRunnerProfile: vi.fn(),
+    removeRunnerProfile: vi.fn(),
+    createUser: vi.fn(),
+    updateUserRole: vi.fn(),
+    createWorkflow: vi.fn(),
+    launchWorkflow: vi.fn(),
+    updateSandboxConfig: vi.fn(),
+    getAnalytics: vi.fn()
   } as unknown as typeof window.commandCenter;
 });
 

@@ -7,7 +7,10 @@ export type IdPrefix =
   | 'approval'
   | 'grant'
   | 'artifact'
-  | 'runner';
+  | 'runner'
+  | 'plugin'
+  | 'workflow'
+  | 'user';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -145,6 +148,128 @@ export interface Artifact {
   createdAt: string;
 }
 
+export interface MarketplaceEntry {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  author: string;
+  category: 'runner' | 'plugin';
+  runnerType: string | null;
+  tags: string[];
+  installed: boolean;
+  rating: number;
+  downloads: number;
+  config: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PluginDefinition {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  author: string;
+  enabled: boolean;
+  entryPoint: string;
+  hooks: PluginHook[];
+  config: Record<string, string>;
+  installedAt: string;
+}
+
+export type PluginHook =
+  | 'beforeRunStart'
+  | 'afterRunComplete'
+  | 'onApprovalRequest'
+  | 'onArtifactCreated'
+  | 'onMissionCreated'
+  | 'onTaskCreated';
+
+export type UserRole = 'admin' | 'operator' | 'viewer';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar: string | null;
+  createdAt: string;
+  lastActiveAt: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  userId: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  details: string;
+  at: string;
+}
+
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  steps: WorkflowStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  agentRole: string;
+  promptTemplate: string;
+  dependsOn: string[];
+  onFailure: 'stop' | 'skip' | 'retry';
+  maxRetries: number;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflowId: string;
+  missionId: string | null;
+  status: 'running' | 'completed' | 'failed' | 'stopped';
+  currentStepIndex: number;
+  stepResults: WorkflowStepResult[];
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface WorkflowStepResult {
+  stepId: string;
+  runId: string | null;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface AnalyticsSnapshot {
+  totalRuns: number;
+  successfulRuns: number;
+  failedRuns: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  averageRunDurationMs: number;
+  estimatedTimeSavedHours: number;
+  costSavingsUsd: number;
+  runsByDay: Array<{ date: string; count: number; cost: number }>;
+  topAgents: Array<{ agentId: string; name: string; runs: number; successRate: number }>;
+}
+
+export interface SandboxConfig {
+  enabled: boolean;
+  runtime: 'docker' | 'firecracker' | 'none';
+  image: string;
+  memoryLimitMb: number;
+  cpuLimit: number;
+  networkAccess: boolean;
+  mountPaths: string[];
+  timeoutSeconds: number;
+}
+
 export interface DashboardSnapshot {
   missions: Mission[];
   tasks: Task[];
@@ -156,6 +281,14 @@ export interface DashboardSnapshot {
   usage: UsageEvent[];
   events: SignificantEvent[];
   artifacts: Artifact[];
+  marketplace: MarketplaceEntry[];
+  plugins: PluginDefinition[];
+  users: User[];
+  workflows: WorkflowTemplate[];
+  workflowRuns: WorkflowRun[];
+  currentUser: User | null;
+  analytics: AnalyticsSnapshot | null;
+  sandboxConfig: SandboxConfig;
 }
 
 export function createId(prefix: IdPrefix): string {

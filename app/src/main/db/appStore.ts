@@ -14,7 +14,14 @@ export type StoreCollection =
   | 'grants'
   | 'usage'
   | 'events'
-  | 'artifacts';
+  | 'artifacts'
+  | 'marketplace'
+  | 'plugins'
+  | 'users'
+  | 'auditLog'
+  | 'workflows'
+  | 'workflowRuns'
+  | 'sandboxConfig';
 
 export interface AppStore {
   put<T extends { id: string }>(collection: StoreCollection, id: string, value: T): void;
@@ -34,7 +41,14 @@ const collections: StoreCollection[] = [
   'grants',
   'usage',
   'events',
-  'artifacts'
+  'artifacts',
+  'marketplace',
+  'plugins',
+  'users',
+  'auditLog',
+  'workflows',
+  'workflowRuns',
+  'sandboxConfig'
 ];
 
 const require = createRequire(import.meta.url);

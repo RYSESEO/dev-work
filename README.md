@@ -4,6 +4,7 @@ A desktop command center for orchestrating AI agent runs, managing missions, app
 
 ## Features
 
+### Core
 - **Mission management** — create and switch between missions with goals and status tracking
 - **Task board** — prioritized work items with status, assignment, and descriptions
 - **Agent fleet** — configure agent profiles with roles and runner backends
@@ -12,6 +13,34 @@ A desktop command center for orchestrating AI agent runs, managing missions, app
 - **Cost & usage tracking** — per-agent token estimates, cost breakdown, and run history
 - **Activity timeline** — real-time event feed from active agent runs
 - **Runner protocol** — NDJSON-based protocol for pluggable agent runners
+
+### Marketplace & Plugins
+- **Runner marketplace** — browse, install, and manage runner packages (OpenAI, Anthropic, Ollama, custom)
+- **Plugin system** — extensible hook-based plugin architecture (beforeRunStart, afterRunComplete, onApproval, etc.)
+- **One-click install/uninstall** — marketplace entries with ratings, downloads, and version tracking
+
+### Team & Access Control
+- **Multi-user support** — create and manage team members with role assignments
+- **Role-based access control** — admin, operator, and viewer roles with granular permissions
+- **Permission matrix** — clear visibility into what each role can do
+
+### Workflow Automation
+- **Workflow templates** — reusable multi-step agent chains (e.g., Plan → Build → Review → Deploy)
+- **Visual workflow builder** — step-by-step editor with agent role assignment and failure policies
+- **Workflow execution engine** — sequential step execution with stop/skip/retry on failure
+- **Workflow run tracking** — real-time progress, step status, and history
+
+### Analytics & ROI
+- **Analytics dashboard** — total runs, success rate, average duration, cost breakdown
+- **ROI tracking** — estimated time saved, agent costs, and net savings calculations
+- **Runs-by-day chart** — visual activity timeline with cost overlay
+- **Agent performance** — per-agent run counts, success rates, and performance bars
+
+### Security & Sandbox
+- **Sandbox configuration** — Docker and Firecracker runtime options for isolated execution
+- **Resource limits** — memory, CPU, and timeout controls per sandbox
+- **Network policy** — enable or block network access for sandboxed agents
+- **Security dashboard** — at-a-glance view of all security settings
 
 ## Architecture
 
@@ -142,6 +171,11 @@ app/
 │               ├── TasksView.tsx
 │               ├── CostUsageView.tsx
 │               ├── SettingsView.tsx
+│               ├── MarketplaceView.tsx
+│               ├── WorkflowsView.tsx
+│               ├── AnalyticsView.tsx
+│               ├── TeamView.tsx
+│               ├── SecurityView.tsx
 │               ├── MetricStrip.tsx
 │               ├── TabNav.tsx
 │               └── ActivityTimeline.tsx
@@ -151,7 +185,12 @@ app/
 │   │   ├── orchestrator.test.ts
 │   │   ├── orchestratorRuns.test.ts
 │   │   ├── commandRunner.test.ts
-│   │   └── approvalPolicy.test.ts
+│   │   ├── approvalPolicy.test.ts
+│   │   ├── marketplace.test.ts
+│   │   ├── teamAndRbac.test.ts
+│   │   ├── workflows.test.ts
+│   │   ├── analytics.test.ts
+│   │   └── sandbox.test.ts
 │   └── shared/
 │       ├── domain.test.ts
 │       └── oneClickTasks.test.ts
