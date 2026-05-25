@@ -34,6 +34,7 @@ import {
 
 export interface Orchestrator {
   getSnapshot(): DashboardSnapshot;
+  getStoreVersion(): number;
   createMission(title: string, goal: string): Mission;
   createTask(missionId: string | null, title: string, description: string, priority?: Task['priority']): Task;
   launchRun(taskId: string, agentProfileId: string, prompt: string): Promise<Run>;
@@ -216,6 +217,8 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
 
   return {
     getSnapshot(): DashboardSnapshot {
+      const allEvents = store.getAll<SignificantEvent>('events');
+      const allUsage = store.getAll<UsageEvent>('usage');
       return {
         missions: store.getAll<Mission>('missions'),
         tasks: store.getAll<Task>('tasks'),
@@ -224,8 +227,8 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         runs: store.getAll<Run>('runs'),
         approvals: store.getAll<ApprovalRequest>('approvals'),
         grants: store.getAll<ApprovalGrant>('grants'),
-        usage: store.getAll<UsageEvent>('usage'),
-        events: store.getAll<SignificantEvent>('events'),
+        usage: allUsage.slice(-100),
+        events: allEvents.slice(-50),
         artifacts: store.getAll<Artifact>('artifacts'),
         marketplace: store.getAll<MarketplaceEntry>('marketplace'),
         plugins: store.getAll<PluginDefinition>('plugins'),
@@ -234,8 +237,12 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         workflowRuns: store.getAll<WorkflowRun>('workflowRuns'),
         currentUser: store.getAll<User>('users')[0] ?? null,
         analytics: null,
-        sandboxConfig: getSandboxConfig()
+        sandboxConfig: getSandboxConfig(),
+        storeVersion: store.getVersion()
       };
+    },
+    getStoreVersion(): number {
+      return store.getVersion();
     },
     createMission(title: string, goal: string): Mission {
       if (!title.trim()) throw new Error('Mission title is required.');

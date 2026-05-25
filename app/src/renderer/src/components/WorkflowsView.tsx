@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { DashboardSnapshot, WorkflowStep } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
 import { createId } from '../../../shared/domain';
+import { useToast } from './ToastProvider';
 
 interface Props {
   snapshot: DashboardSnapshot;
@@ -10,10 +11,13 @@ interface Props {
 }
 
 export function WorkflowsView({ snapshot, onRefresh }: Props) {
+  const toast = useToast();
   const [showCreator, setShowCreator] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
 
   function addStep(): void {
     setSteps([
@@ -39,19 +43,38 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
   }
 
   async function handleCreate(): Promise<void> {
-    if (!name.trim() || steps.length === 0) return;
-    await commandCenterClient.createWorkflow(name.trim(), description.trim(), steps);
-    setName('');
-    setDescription('');
-    setSteps([]);
-    setShowCreator(false);
-    await onRefresh();
+    if (!name.trim() || steps.length === 0) {
+      toast.warning('Workflow needs a name and at least one step.');
+      return;
+    }
+    setCreating(true);
+    try {
+      await commandCenterClient.createWorkflow(name.trim(), description.trim(), steps);
+      toast.success(`Workflow "${name.trim()}" created.`);
+      setName('');
+      setDescription('');
+      setSteps([]);
+      setShowCreator(false);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to create workflow: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setCreating(false);
+    }
   }
 
-  async function handleLaunch(workflowId: string): Promise<void> {
-    const missionId = snapshot.missions[0]?.id ?? null;
-    await commandCenterClient.launchWorkflow(workflowId, missionId);
-    await onRefresh();
+  async function handleLaunch(workflowId: string, workflowName: string): Promise<void> {
+    setLaunchingId(workflowId);
+    try {
+      const missionId = snapshot.missions[0]?.id ?? null;
+      await commandCenterClient.launchWorkflow(workflowId, missionId);
+      toast.success(`Workflow "${workflowName}" launched.`);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to launch workflow: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setLaunchingId(null);
+    }
   }
 
   return (
@@ -69,7 +92,7 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
             <h2>Workflow templates</h2>
             <p>{snapshot.workflows.length} template{snapshot.workflows.length !== 1 ? 's' : ''}</p>
           </div>
-          <button className="primary-button" onClick={() => setShowCreator(!showCreator)} style={{ marginLeft: 'auto' }}>
+          <button className="primary-button panel-action" onClick={() => setShowCreator(!showCreator)}>
             <Plus size={15} /> New workflow
           </button>
         </div>
@@ -82,7 +105,7 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
             </div>
 
             <div className="workflow-steps">
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '12px 0 8px' }}>Steps</h3>
+              <h3 className="workflow-steps-heading">Steps</h3>
               {steps.map((step, i) => (
                 <div key={step.id} className="workflow-step-editor">
                   <span className="step-number">{i + 1}</span>
@@ -106,7 +129,9 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
             </div>
 
             <div className="form-actions">
-              <button className="primary-button" onClick={() => void handleCreate()} disabled={!name.trim() || steps.length === 0}>Create workflow</button>
+              <button className="primary-button" onClick={() => void handleCreate()} disabled={creating || !name.trim() || steps.length === 0}>
+                {creating ? 'Creating...' : 'Create workflow'}
+              </button>
               <button className="secondary-button" onClick={() => setShowCreator(false)}>Cancel</button>
             </div>
           </div>
@@ -116,6 +141,7 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
           {snapshot.workflows.map((workflow) => {
             const runs = snapshot.workflowRuns.filter((r) => r.workflowId === workflow.id);
             const lastRun = runs[runs.length - 1];
+            const isLaunching = launchingId === workflow.id;
             return (
               <article key={workflow.id} className="workflow-card">
                 <div className="workflow-card-header">
@@ -137,8 +163,8 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
                   </div>
                 )}
                 <div className="marketplace-actions">
-                  <button className="primary-button" onClick={() => void handleLaunch(workflow.id)}>
-                    <Play size={15} /> Launch
+                  <button className="primary-button" disabled={isLaunching} onClick={() => void handleLaunch(workflow.id, workflow.name)}>
+                    <Play size={15} /> {isLaunching ? 'Launching...' : 'Launch'}
                   </button>
                 </div>
               </article>

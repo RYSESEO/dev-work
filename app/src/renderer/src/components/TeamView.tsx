@@ -2,6 +2,7 @@ import { Shield, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import type { DashboardSnapshot, UserRole } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
+import { useToast } from './ToastProvider';
 
 interface Props {
   snapshot: DashboardSnapshot;
@@ -9,24 +10,46 @@ interface Props {
 }
 
 export function TeamView({ snapshot, onRefresh }: Props) {
+  const toast = useToast();
   const [showAddUser, setShowAddUser] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('operator');
+  const [adding, setAdding] = useState(false);
+  const [changingRole, setChangingRole] = useState<string | null>(null);
 
   async function handleAddUser(): Promise<void> {
-    if (!name.trim() || !email.trim()) return;
-    await commandCenterClient.createUser(name.trim(), email.trim(), role);
-    setName('');
-    setEmail('');
-    setRole('operator');
-    setShowAddUser(false);
-    await onRefresh();
+    if (!name.trim() || !email.trim()) {
+      toast.warning('Name and email are required.');
+      return;
+    }
+    setAdding(true);
+    try {
+      await commandCenterClient.createUser(name.trim(), email.trim(), role);
+      toast.success(`${name.trim()} added as ${role}.`);
+      setName('');
+      setEmail('');
+      setRole('operator');
+      setShowAddUser(false);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to add user: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setAdding(false);
+    }
   }
 
-  async function handleRoleChange(userId: string, newRole: UserRole): Promise<void> {
-    await commandCenterClient.updateUserRole(userId, newRole);
-    await onRefresh();
+  async function handleRoleChange(userId: string, userName: string, newRole: UserRole): Promise<void> {
+    setChangingRole(userId);
+    try {
+      await commandCenterClient.updateUserRole(userId, newRole);
+      toast.success(`${userName} role changed to ${newRole}.`);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to change role: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setChangingRole(null);
+    }
   }
 
   const roleColors: Record<UserRole, string> = {
@@ -50,7 +73,7 @@ export function TeamView({ snapshot, onRefresh }: Props) {
             <h2>Team members</h2>
             <p>{snapshot.users.length} member{snapshot.users.length !== 1 ? 's' : ''}</p>
           </div>
-          <button className="primary-button" onClick={() => setShowAddUser(!showAddUser)} style={{ marginLeft: 'auto' }}>
+          <button className="primary-button panel-action" onClick={() => setShowAddUser(!showAddUser)}>
             <UserPlus size={15} /> Add member
           </button>
         </div>
@@ -75,7 +98,9 @@ export function TeamView({ snapshot, onRefresh }: Props) {
               <option value="operator">Operator</option>
               <option value="viewer">Viewer</option>
             </select>
-            <button className="primary-button" onClick={() => void handleAddUser()}>Add</button>
+            <button className="primary-button" disabled={adding} onClick={() => void handleAddUser()}>
+              {adding ? 'Adding...' : 'Add'}
+            </button>
           </div>
         )}
 
@@ -101,7 +126,8 @@ export function TeamView({ snapshot, onRefresh }: Props) {
                     <select
                       className="input compact-input"
                       value={user.role}
-                      onChange={(e) => void handleRoleChange(user.id, e.target.value as UserRole)}
+                      disabled={changingRole === user.id}
+                      onChange={(e) => void handleRoleChange(user.id, user.name, e.target.value as UserRole)}
                     >
                       <option value="admin">Admin</option>
                       <option value="operator">Operator</option>

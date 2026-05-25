@@ -1,6 +1,8 @@
 import { ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
 import type { DashboardSnapshot } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
+import { useToast } from './ToastProvider';
 
 interface Props {
   snapshot: DashboardSnapshot;
@@ -8,16 +10,34 @@ interface Props {
 }
 
 export function ApprovalQueue({ snapshot, onRefresh }: Props) {
+  const toast = useToast();
+  const [busyId, setBusyId] = useState<string | null>(null);
   const pending = snapshot.approvals.filter((approval) => approval.status === 'pending');
 
   async function approve(id: string): Promise<void> {
-    await commandCenterClient.approveRequest(id);
-    await onRefresh();
+    setBusyId(id);
+    try {
+      await commandCenterClient.approveRequest(id);
+      toast.success('Request approved.');
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to approve: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function reject(id: string): Promise<void> {
-    await commandCenterClient.rejectRequest(id, 'Rejected from dashboard');
-    await onRefresh();
+    setBusyId(id);
+    try {
+      await commandCenterClient.rejectRequest(id, 'Rejected from dashboard');
+      toast.success('Request rejected.');
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to reject: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -32,27 +52,30 @@ export function ApprovalQueue({ snapshot, onRefresh }: Props) {
         </div>
       </div>
       <ul className="item-list">
-        {pending.map((approval) => (
-          <li className="item" key={approval.id}>
-            <div className="item-title-row">
-              <strong>{approval.title}</strong>
-              <span className={`risk-chip risk-${approval.riskLevel}`}>{approval.riskLevel}</span>
-            </div>
-            <p>{approval.description}</p>
-            <div className="item-meta">
-              <span>{approval.scope.kind}</span>
-              <span>{approval.runId}</span>
-            </div>
-            <div className="button-row">
-              <button className="primary-button" onClick={() => void approve(approval.id)}>
-                Approve Session
-              </button>
-              <button className="danger-button" onClick={() => void reject(approval.id)}>
-                Reject
-              </button>
-            </div>
-          </li>
-        ))}
+        {pending.map((approval) => {
+          const isBusy = busyId === approval.id;
+          return (
+            <li className="item" key={approval.id}>
+              <div className="item-title-row">
+                <strong>{approval.title}</strong>
+                <span className={`risk-chip risk-${approval.riskLevel}`}>{approval.riskLevel}</span>
+              </div>
+              <p>{approval.description}</p>
+              <div className="item-meta">
+                <span>{approval.scope.kind}</span>
+                <span>{approval.runId}</span>
+              </div>
+              <div className="button-row">
+                <button className="primary-button" disabled={isBusy} onClick={() => void approve(approval.id)}>
+                  {isBusy ? 'Processing...' : 'Approve Session'}
+                </button>
+                <button className="danger-button" disabled={isBusy} onClick={() => void reject(approval.id)}>
+                  Reject
+                </button>
+              </div>
+            </li>
+          );
+        })}
         {pending.length === 0 && <li className="empty-row">No approvals waiting.</li>}
       </ul>
     </section>

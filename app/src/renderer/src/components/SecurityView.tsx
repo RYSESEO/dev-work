@@ -2,6 +2,7 @@ import { Lock, Shield, Server } from 'lucide-react';
 import { useState } from 'react';
 import type { DashboardSnapshot, SandboxConfig } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
+import { useToast } from './ToastProvider';
 
 interface Props {
   snapshot: DashboardSnapshot;
@@ -9,9 +10,11 @@ interface Props {
 }
 
 export function SecurityView({ snapshot, onRefresh }: Props) {
+  const toast = useToast();
   const config = snapshot.sandboxConfig;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<SandboxConfig>(config);
+  const [saving, setSaving] = useState(false);
 
   function startEditing(): void {
     setDraft({ ...config });
@@ -19,9 +22,17 @@ export function SecurityView({ snapshot, onRefresh }: Props) {
   }
 
   async function handleSave(): Promise<void> {
-    await commandCenterClient.updateSandboxConfig(draft);
-    setEditing(false);
-    await onRefresh();
+    setSaving(true);
+    try {
+      await commandCenterClient.updateSandboxConfig(draft);
+      toast.success('Sandbox configuration saved.');
+      setEditing(false);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to save config: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -40,7 +51,7 @@ export function SecurityView({ snapshot, onRefresh }: Props) {
             <p>Control how agent code executes in isolated environments.</p>
           </div>
           {!editing && (
-            <button className="secondary-button" onClick={startEditing} style={{ marginLeft: 'auto' }}>Edit</button>
+            <button className="secondary-button panel-action" onClick={startEditing}>Edit</button>
           )}
         </div>
 
@@ -83,7 +94,9 @@ export function SecurityView({ snapshot, onRefresh }: Props) {
               </label>
             </div>
             <div className="form-actions">
-              <button className="primary-button" onClick={() => void handleSave()}>Save configuration</button>
+              <button className="primary-button" disabled={saving} onClick={() => void handleSave()}>
+                {saving ? 'Saving...' : 'Save configuration'}
+              </button>
               <button className="secondary-button" onClick={() => setEditing(false)}>Cancel</button>
             </div>
           </div>
@@ -98,7 +111,7 @@ export function SecurityView({ snapshot, onRefresh }: Props) {
               <ConfigItem icon={Lock} label="Timeout" value={`${config.timeoutSeconds}s`} status={true} />
             </div>
             {config.image && (
-              <p style={{ marginTop: 12, fontSize: '0.86rem', color: 'var(--muted)' }}>
+              <p className="sandbox-image-note">
                 Image: <code>{config.image}</code>
               </p>
             )}

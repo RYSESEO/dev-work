@@ -12,7 +12,13 @@ function getOrchestrator(): Promise<Orchestrator> {
 }
 
 export function registerIpcHandlers(): void {
-  ipcMain.handle('dashboard:getSnapshot', async () => (await getOrchestrator()).getSnapshot());
+  ipcMain.handle('dashboard:getSnapshot', async (_event, knownVersion?: number) => {
+    const orch = await getOrchestrator();
+    if (typeof knownVersion === 'number' && knownVersion === orch.getStoreVersion()) {
+      return null;
+    }
+    return orch.getSnapshot();
+  });
   ipcMain.handle('mission:create', async (_event, title: string, goal: string) =>
     (await getOrchestrator()).createMission(title, goal)
   );

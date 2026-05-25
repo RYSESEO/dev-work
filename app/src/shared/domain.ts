@@ -289,6 +289,7 @@ export interface DashboardSnapshot {
   currentUser: User | null;
   analytics: AnalyticsSnapshot | null;
   sandboxConfig: SandboxConfig;
+  storeVersion?: number;
 }
 
 export function createId(prefix: IdPrefix): string {

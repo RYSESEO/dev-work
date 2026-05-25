@@ -1,7 +1,13 @@
-import { ClipboardCheck } from 'lucide-react';
+import { Activity, ClipboardCheck } from 'lucide-react';
 import type { DashboardSnapshot } from '../../../shared/domain';
+import type { AppTab } from './TabNav';
 
-export function TasksView({ snapshot }: { snapshot: DashboardSnapshot }) {
+interface Props {
+  snapshot: DashboardSnapshot;
+  onNavigate(tab: AppTab): void;
+}
+
+export function TasksView({ snapshot, onNavigate }: Props) {
   const agentsById = new Map(snapshot.agents.map((agent) => [agent.id, agent.name]));
 
   return (
@@ -21,35 +27,39 @@ export function TasksView({ snapshot }: { snapshot: DashboardSnapshot }) {
             <p>{snapshot.tasks.length} tracked tasks</p>
           </div>
         </div>
-        <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Assignee</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {snapshot.tasks.map((task) => (
-              <tr key={task.id}>
-                <td>{task.title}</td>
-                <td>{task.status}</td>
-                <td>{task.priority}</td>
-                <td>{task.assigneeAgentId ? agentsById.get(task.assigneeAgentId) ?? task.assigneeAgentId : 'Unassigned'}</td>
-                <td>{task.description}</td>
-              </tr>
-            ))}
-            {snapshot.tasks.length === 0 && (
-              <tr>
-                <td colSpan={5}>No tasks yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        </div>
+        {snapshot.tasks.length > 0 ? (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Assignee</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshot.tasks.map((task) => (
+                  <tr key={task.id}>
+                    <td>{task.title}</td>
+                    <td><span className={`status-chip status-${task.status}`}>{task.status}</span></td>
+                    <td><span className={`priority-chip priority-${task.priority}`}>{task.priority}</span></td>
+                    <td>{task.assigneeAgentId ? agentsById.get(task.assigneeAgentId) ?? task.assigneeAgentId : 'Unassigned'}</td>
+                    <td>{task.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rich-empty-state">
+            <Activity size={36} />
+            <h3>No tasks yet</h3>
+            <p>Tasks are created when you launch agent runs from Mission Control.</p>
+            <button className="primary-button" onClick={() => onNavigate('mission')}>Go to Mission Control</button>
+          </div>
+        )}
       </section>
     </main>
   );
