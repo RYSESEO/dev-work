@@ -4,17 +4,20 @@ import type { DashboardSnapshot } from '../../../shared/domain';
 import { ActivityTimeline } from './ActivityTimeline';
 import { AgentRoster } from './AgentRoster';
 import { ApprovalQueue } from './ApprovalQueue';
+import { GettingStarted } from './GettingStarted';
 import { MetricStrip } from './MetricStrip';
 import { MissionCreator } from './MissionCreator';
 import { OneClickLaunchers } from './OneClickLaunchers';
+import type { AppTab } from './TabNav';
 import { TaskBoard } from './TaskBoard';
 
 interface Props {
   snapshot: DashboardSnapshot;
   onRefresh(): Promise<void>;
+  onNavigate(tab: AppTab): void;
 }
 
-export function MissionControl({ snapshot, onRefresh }: Props) {
+export function MissionControl({ snapshot, onRefresh, onNavigate }: Props) {
   const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
   const mission = snapshot.missions.find((m) => m.id === activeMissionId) ?? snapshot.missions[0] ?? null;
   const activeRuns = snapshot.runs.filter((run) => run.status === 'running' || run.status === 'paused_for_approval').length;
@@ -66,6 +69,7 @@ export function MissionControl({ snapshot, onRefresh }: Props) {
           ) : (
             <OneClickLaunchers snapshot={snapshot} onRefresh={onRefresh} />
           )}
+          <GettingStarted snapshot={snapshot} onNavigate={onNavigate} />
         </aside>
         <section className="mission-center">
           <TaskBoard snapshot={snapshot} />

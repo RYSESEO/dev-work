@@ -1,7 +1,7 @@
 import type { RunnerProfile, SandboxConfig, User, WorkflowStep } from '../../../shared/domain';
 
 export const commandCenterClient = {
-  getSnapshot: () => window.commandCenter.getSnapshot(),
+  getSnapshot: (knownVersion?: number) => window.commandCenter.getSnapshot(knownVersion),
   createMission: (title: string, goal: string) => window.commandCenter.createMission(title, goal),
   createTask: (missionId: string | null, title: string, description: string, priority?: 'low' | 'normal' | 'high') =>
     window.commandCenter.createTask(missionId, title, description, priority),

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DashboardSnapshot } from '../../../shared/domain';
 import { OneClickLaunchers } from './OneClickLaunchers';
+import { ToastProvider } from './ToastProvider';
 
 const snapshot: DashboardSnapshot = {
   missions: [{ id: 'mission_1', title: 'Mission', goal: 'Goal', status: 'active', createdAt: '', updatedAt: '' }],
@@ -58,7 +59,7 @@ beforeEach(() => {
 
 describe('OneClickLaunchers', () => {
   it('creates a task and launches a run', async () => {
-    render(<OneClickLaunchers snapshot={snapshot} onRefresh={vi.fn()} />);
+    render(<ToastProvider><OneClickLaunchers snapshot={snapshot} onRefresh={vi.fn()} /></ToastProvider>);
 
     fireEvent.click(screen.getByText('Review this repo'));
 

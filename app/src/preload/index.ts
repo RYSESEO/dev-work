@@ -14,7 +14,8 @@ import type {
 } from '../shared/domain.js';
 
 const commandCenter = {
-  getSnapshot: (): Promise<DashboardSnapshot> => ipcRenderer.invoke('dashboard:getSnapshot'),
+  getSnapshot: (knownVersion?: number): Promise<DashboardSnapshot | null> =>
+    ipcRenderer.invoke('dashboard:getSnapshot', knownVersion),
   createMission: (title: string, goal: string): Promise<Mission> => ipcRenderer.invoke('mission:create', title, goal),
   createTask: (
     missionId: string | null,

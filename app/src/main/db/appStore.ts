@@ -29,6 +29,8 @@ export interface AppStore {
   getAll<T>(collection: StoreCollection): T[];
   remove(collection: StoreCollection, id: string): void;
   exportToDisk(): void;
+  getVersion(): number;
+  getChangedCollections(sinceVersion: number): Set<StoreCollection>;
 }
 
 const collections: StoreCollection[] = [
@@ -72,6 +74,21 @@ export async function createAppStore(databasePath: string): Promise<AppStore> {
     )
   `);
 
+  let version = 0;
+  const changeLog = new Map<number, StoreCollection>();
+
+  function trackChange(collection: StoreCollection): void {
+    version++;
+    changeLog.set(version, collection);
+    if (changeLog.size > 500) {
+      const cutoff = version - 500;
+      for (const key of changeLog.keys()) {
+        if (key <= cutoff) changeLog.delete(key);
+        else break;
+      }
+    }
+  }
+
   let persistQueued = false;
   function persist(): void {
     if (isMemory || persistQueued) return;
@@ -93,6 +110,7 @@ export async function createAppStore(databasePath: string): Promise<AppStore> {
          ON CONFLICT(collection, id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`,
         [collection, id, JSON.stringify(value), new Date().toISOString()]
       );
+      trackChange(collection);
       persist();
     },
     getById<T>(collection: StoreCollection, id: string): T | null {
@@ -115,10 +133,21 @@ export async function createAppStore(databasePath: string): Promise<AppStore> {
     remove(collection: StoreCollection, id: string): void {
       assertCollection(collection);
       db.run('DELETE FROM records WHERE collection = ? AND id = ?', [collection, id]);
+      trackChange(collection);
       persist();
     },
     exportToDisk(): void {
       persist();
+    },
+    getVersion(): number {
+      return version;
+    },
+    getChangedCollections(sinceVersion: number): Set<StoreCollection> {
+      const changed = new Set<StoreCollection>();
+      for (const [v, collection] of changeLog) {
+        if (v > sinceVersion) changed.add(collection);
+      }
+      return changed;
     }
   };
 }
