@@ -1,4 +1,4 @@
-import { Shield, UserPlus, Users } from 'lucide-react';
+import { Shield, Trash2, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import type { DashboardSnapshot, UserRole } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
@@ -17,6 +17,20 @@ export function TeamView({ snapshot, onRefresh }: Props) {
   const [role, setRole] = useState<UserRole>('operator');
   const [adding, setAdding] = useState(false);
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
+
+  async function handleDeleteUser(userId: string, userName: string): Promise<void> {
+    setDeletingUser(userId);
+    try {
+      await commandCenterClient.deleteUser(userId);
+      toast.success(`${userName} removed from team.`);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to remove: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setDeletingUser(null);
+    }
+  }
 
   async function handleAddUser(): Promise<void> {
     if (!name.trim() || !email.trim()) {
@@ -133,6 +147,14 @@ export function TeamView({ snapshot, onRefresh }: Props) {
                       <option value="operator">Operator</option>
                       <option value="viewer">Viewer</option>
                     </select>
+                    <button
+                      className="icon-button-sm danger"
+                      disabled={deletingUser === user.id}
+                      onClick={() => void handleDeleteUser(user.id, user.name)}
+                      title="Remove user"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}

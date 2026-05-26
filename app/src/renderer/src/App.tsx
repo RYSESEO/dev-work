@@ -120,7 +120,7 @@ export function App(): JSX.Element {
             <ErrorBoundary fallbackLabel={`Error in ${activeTab} tab`}>
               {activeTab === 'mission' && <MissionControl snapshot={snapshot} onRefresh={refresh} onNavigate={setActiveTab} />}
               {activeTab === 'agents' && <AgentsView snapshot={snapshot} />}
-              {activeTab === 'tasks' && <TasksView snapshot={snapshot} onNavigate={setActiveTab} />}
+              {activeTab === 'tasks' && <TasksView snapshot={snapshot} onRefresh={refresh} onNavigate={setActiveTab} />}
               {activeTab === 'workflows' && <WorkflowsView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'marketplace' && <MarketplaceView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'analytics' && <AnalyticsView />}

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AppStore } from '../db/appStore.js';
+import { logger } from '../logger.js';
 import { CommandRunner } from '../runners/commandRunner.js';
 import { OpenAIRunner } from '../runners/openaiRunner.js';
 import type { Runner, RunnerHandle } from '../runners/types.js';
@@ -36,8 +37,13 @@ export interface Orchestrator {
   getSnapshot(): DashboardSnapshot;
   getStoreVersion(): number;
   createMission(title: string, goal: string): Mission;
+  updateMission(id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>): Mission;
+  deleteMission(id: string): void;
   createTask(missionId: string | null, title: string, description: string, priority?: Task['priority']): Task;
+  updateTask(id: string, fields: Partial<Pick<Task, 'title' | 'description' | 'priority' | 'status'>>): Task;
+  deleteTask(id: string): void;
   launchRun(taskId: string, agentProfileId: string, prompt: string): Promise<Run>;
+  stopRun(runId: string): void;
   approveRequest(approvalRequestId: string): void;
   rejectRequest(approvalRequestId: string, reason: string): void;
   waitForRunEvent(runId: string, eventType: string, timeoutMs: number): Promise<void>;
@@ -46,16 +52,22 @@ export interface Orchestrator {
   togglePlugin(pluginId: string, enabled: boolean): void;
   addRunnerProfile(profile: RunnerProfile): void;
   removeRunnerProfile(profileId: string): void;
+  updateRunnerProfile(id: string, fields: Partial<Omit<RunnerProfile, 'id'>>): RunnerProfile;
   createUser(name: string, email: string, role: User['role']): User;
   updateUserRole(userId: string, role: User['role']): void;
+  deleteUser(userId: string): void;
   createWorkflow(name: string, description: string, steps: WorkflowStep[]): WorkflowTemplate;
+  updateWorkflow(id: string, fields: Partial<Pick<WorkflowTemplate, 'name' | 'description' | 'steps'>>): WorkflowTemplate;
+  deleteWorkflow(id: string): void;
   launchWorkflow(workflowId: string, missionId: string | null): Promise<WorkflowRun>;
   updateSandboxConfig(config: Partial<SandboxConfig>): SandboxConfig;
   getAnalytics(): AnalyticsSnapshot;
 }
 
 export async function createOrchestrator(store: AppStore): Promise<Orchestrator> {
+  const log = logger.child('orchestrator');
   seedDefaults(store);
+  log.info('Orchestrator initialized');
   const runners: Record<string, Runner> = {
     command: new CommandRunner(),
     openai: new OpenAIRunner()
@@ -109,6 +121,7 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
   function finalizeRun(runId: string, status: 'completed' | 'failed' | 'stopped', body: string): void {
     const run = store.getById<Run>('runs', runId);
     if (!run || isTerminalRunStatus(run.status)) return;
+    log.info(`Run finalized: ${status}`, { runId, body });
 
     const at = nowIso();
     store.put('runs', run.id, { ...run, status, completedAt: at });
@@ -247,6 +260,7 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
     createMission(title: string, goal: string): Mission {
       if (!title.trim()) throw new Error('Mission title is required.');
       if (!goal.trim()) throw new Error('Mission goal is required.');
+      log.info('Creating mission', { title });
       const at = nowIso();
       const mission: Mission = {
         id: createId('mission'),
@@ -258,6 +272,20 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       };
       store.put('missions', mission.id, mission);
       return mission;
+    },
+    updateMission(id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>): Mission {
+      const mission = store.getById<Mission>('missions', id);
+      if (!mission) throw new Error(`Mission not found: ${id}`);
+      const updated = { ...mission, ...fields, updatedAt: nowIso() };
+      store.put('missions', id, updated);
+      log.info('Mission updated', { id, fields });
+      return updated;
+    },
+    deleteMission(id: string): void {
+      const mission = store.getById<Mission>('missions', id);
+      if (!mission) throw new Error(`Mission not found: ${id}`);
+      store.remove('missions', id);
+      log.info('Mission deleted', { id });
     },
     createTask(missionId: string | null, title: string, description: string, priority: Task['priority'] = 'normal'): Task {
       if (!title.trim()) throw new Error('Task title is required.');
@@ -276,7 +304,22 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       store.put('tasks', task.id, task);
       return task;
     },
+    updateTask(id: string, fields: Partial<Pick<Task, 'title' | 'description' | 'priority' | 'status'>>): Task {
+      const task = store.getById<Task>('tasks', id);
+      if (!task) throw new Error(`Task not found: ${id}`);
+      const updated = { ...task, ...fields, updatedAt: nowIso() };
+      store.put('tasks', id, updated);
+      log.info('Task updated', { id, fields });
+      return updated;
+    },
+    deleteTask(id: string): void {
+      const task = store.getById<Task>('tasks', id);
+      if (!task) throw new Error(`Task not found: ${id}`);
+      store.remove('tasks', id);
+      log.info('Task deleted', { id });
+    },
     async launchRun(taskId: string, agentProfileId: string, prompt: string): Promise<Run> {
+      log.info('Launching run', { taskId, agentProfileId });
       const task = store.getById<Task>('tasks', taskId);
       const agent = store.getById<AgentProfile>('agents', agentProfileId);
       if (!task) throw new Error(`Task not found: ${taskId}`);
@@ -326,6 +369,17 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       });
 
       return run;
+    },
+    stopRun(runId: string): void {
+      const run = store.getById<Run>('runs', runId);
+      if (!run) throw new Error(`Run not found: ${runId}`);
+      if (isTerminalRunStatus(run.status)) throw new Error(`Run already in terminal state: ${run.status}`);
+      const handle = handles.get(runId);
+      if (handle) {
+        handle.stop('Stopped by user');
+      }
+      finalizeRun(runId, 'stopped', 'Stopped by user.');
+      log.info('Run stopped by user', { runId });
     },
     approveRequest(approvalRequestId: string): void {
       const approval = store.getById<ApprovalRequest>('approvals', approvalRequestId);
@@ -395,6 +449,14 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
     removeRunnerProfile(profileId: string): void {
       store.remove('runnerProfiles', profileId);
     },
+    updateRunnerProfile(id: string, fields: Partial<Omit<RunnerProfile, 'id'>>): RunnerProfile {
+      const profile = store.getById<RunnerProfile>('runnerProfiles', id);
+      if (!profile) throw new Error(`Runner profile not found: ${id}`);
+      const updated = { ...profile, ...fields } as RunnerProfile;
+      store.put('runnerProfiles', id, updated);
+      log.info('Runner profile updated', { id });
+      return updated;
+    },
     createUser(name: string, email: string, role: User['role']): User {
       if (!name.trim()) throw new Error('User name is required.');
       if (!email.trim()) throw new Error('User email is required.');
@@ -416,6 +478,12 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       if (!user) throw new Error(`User not found: ${userId}`);
       store.put('users', user.id, { ...user, role });
     },
+    deleteUser(userId: string): void {
+      const user = store.getById<User>('users', userId);
+      if (!user) throw new Error(`User not found: ${userId}`);
+      store.remove('users', userId);
+      log.info('User deleted', { userId });
+    },
     createWorkflow(name: string, description: string, steps: WorkflowStep[]): WorkflowTemplate {
       if (!name.trim()) throw new Error('Workflow name is required.');
       const at = nowIso();
@@ -429,6 +497,20 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       };
       store.put('workflows', workflow.id, workflow);
       return workflow;
+    },
+    updateWorkflow(id: string, fields: Partial<Pick<WorkflowTemplate, 'name' | 'description' | 'steps'>>): WorkflowTemplate {
+      const workflow = store.getById<WorkflowTemplate>('workflows', id);
+      if (!workflow) throw new Error(`Workflow not found: ${id}`);
+      const updated = { ...workflow, ...fields, updatedAt: nowIso() };
+      store.put('workflows', id, updated);
+      log.info('Workflow updated', { id });
+      return updated;
+    },
+    deleteWorkflow(id: string): void {
+      const workflow = store.getById<WorkflowTemplate>('workflows', id);
+      if (!workflow) throw new Error(`Workflow not found: ${id}`);
+      store.remove('workflows', id);
+      log.info('Workflow deleted', { id });
     },
     async launchWorkflow(workflowId: string, missionId: string | null): Promise<WorkflowRun> {
       const workflow = store.getById<WorkflowTemplate>('workflows', workflowId);

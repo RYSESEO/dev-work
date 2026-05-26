@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import initSqlJs from 'sql.js';
+import { runMigrations } from './migrations.js';
 
 export type StoreCollection =
   | 'missions'
@@ -64,15 +65,7 @@ export async function createAppStore(databasePath: string): Promise<AppStore> {
   const existing = !isMemory && existsSync(databasePath) ? readFileSync(databasePath) : undefined;
   const db = existing ? new SQL.Database(existing) : new SQL.Database();
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS records (
-      collection TEXT NOT NULL,
-      id TEXT NOT NULL,
-      json TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (collection, id)
-    )
-  `);
+  runMigrations(db);
 
   let version = 0;
   const changeLog = new Map<number, StoreCollection>();

@@ -1,4 +1,4 @@
-import { GitBranch, Play, Plus } from 'lucide-react';
+import { GitBranch, Play, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { DashboardSnapshot, WorkflowStep } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
@@ -18,6 +18,20 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [creating, setCreating] = useState(false);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(workflowId: string, workflowName: string): Promise<void> {
+    setDeletingId(workflowId);
+    try {
+      await commandCenterClient.deleteWorkflow(workflowId);
+      toast.success(`"${workflowName}" deleted.`);
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   function addStep(): void {
     setSteps([
@@ -165,6 +179,14 @@ export function WorkflowsView({ snapshot, onRefresh }: Props) {
                 <div className="marketplace-actions">
                   <button className="primary-button" disabled={isLaunching} onClick={() => void handleLaunch(workflow.id, workflow.name)}>
                     <Play size={15} /> {isLaunching ? 'Launching...' : 'Launch'}
+                  </button>
+                  <button
+                    className="icon-button-sm danger"
+                    disabled={deletingId === workflow.id}
+                    onClick={() => void handleDelete(workflow.id, workflow.name)}
+                    title="Delete workflow"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </article>
