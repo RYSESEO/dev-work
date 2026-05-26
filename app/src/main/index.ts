@@ -1,7 +1,9 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerIpcHandlers } from './ipc.js';
+import { logger } from './logger.js';
+import { initAutoUpdater, installUpdate } from './updater.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,8 +31,11 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
+  logger.info('App ready', { version: app.getVersion(), platform: process.platform });
   registerIpcHandlers();
+  ipcMain.handle('update:install', () => installUpdate());
   createWindow();
+  initAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
