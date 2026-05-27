@@ -87,7 +87,8 @@ const snapshot: DashboardSnapshot = {
   workflowRuns: [],
   currentUser: null,
   analytics: null,
-  sandboxConfig: { enabled: false, runtime: 'none', image: '', memoryLimitMb: 512, cpuLimit: 1, networkAccess: false, mountPaths: [], timeoutSeconds: 300 }
+  sandboxConfig: { enabled: false, runtime: 'none', image: '', memoryLimitMb: 512, cpuLimit: 1, networkAccess: false, mountPaths: [], timeoutSeconds: 300 },
+  license: { tier: 'free', maxAgents: 3, maxRunners: 1, maxUsers: 1, features: [], validUntil: null, activated: false }
 };
 
 beforeEach(() => {

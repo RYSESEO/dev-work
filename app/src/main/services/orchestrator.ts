@@ -8,6 +8,9 @@ import type { Runner, RunnerHandle } from '../runners/types.js';
 import type { RunnerToHostMessage } from '../../shared/runnerProtocol.js';
 import { findMatchingGrant } from './approvalPolicy.js';
 import { type AuthService, hashPassword, stripPasswordHash } from './auth.js';
+import { createLicenseService } from './license.js';
+import { createMarketplaceService } from './marketplace.js';
+import { createPluginRuntime } from './pluginRuntime.js';
 import {
   createId,
   isTerminalRunStatus,
@@ -19,6 +22,7 @@ import {
   type ApprovalGrant,
   type ApprovalRequest,
   type DashboardSnapshot,
+  type LicenseStatus,
   type MarketplaceEntry,
   type Mission,
   type PluginDefinition,
@@ -85,6 +89,10 @@ export interface Orchestrator {
   getAuditLog(): AuditLogEntry[];
   // Export
   exportData(format: 'json' | 'csv'): string;
+  // License
+  activateLicense(key: string, email: string): LicenseStatus;
+  deactivateLicense(): void;
+  getLicenseStatus(): LicenseStatus;
 }
 
 const noopAuth: AuthService = {
@@ -97,8 +105,26 @@ const noopAuth: AuthService = {
 
 export async function createOrchestrator(store: AppStore, auth: AuthService = noopAuth): Promise<Orchestrator> {
   const log = logger.child('orchestrator');
+  const license = createLicenseService(store);
+  const packagesDir = path.join(process.cwd(), 'packages');
+  const marketplace = createMarketplaceService(store, packagesDir);
+  const pluginRuntime = createPluginRuntime(store);
   seedDefaults(store);
   log.info('Orchestrator initialized');
+
+  function getLicenseStatusObj(): LicenseStatus {
+    const limits = license.getLimits();
+    const stored = license.getLicense();
+    return {
+      tier: limits.tier,
+      maxAgents: limits.maxAgents,
+      maxRunners: limits.maxRunners,
+      maxUsers: limits.maxUsers,
+      features: limits.features,
+      validUntil: stored?.validUntil ?? null,
+      activated: stored !== null
+    };
+  }
 
   function recordAudit(action: string, targetType: string, targetId: string, details: string): void {
     const currentUser = auth.getCurrentUser();
@@ -209,6 +235,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     addEvent(run.id, run.taskId, title, body, level);
     handles.delete(run.id);
     emitRunEvent(run.id, status === 'completed' ? 'complete' : status);
+    void pluginRuntime.invokeHook('afterRunComplete', { runId: run.id, taskId: run.taskId });
   }
 
   function handleRunnerMessage(runId: string, message: RunnerToHostMessage): void {
@@ -238,6 +265,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       store.put('runs', run.id, { ...run, status: 'paused_for_approval' });
       addEvent(runId, run.taskId, 'Approval requested', request.title, 'warning');
       emitRunEvent(runId, 'approval_request');
+      void pluginRuntime.invokeHook('onApprovalRequest', { runId, approvalId: request.id });
       return;
     }
 
@@ -272,6 +300,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         createdAt: nowIso()
       };
       store.put('artifacts', artifact.id, artifact);
+      void pluginRuntime.invokeHook('onArtifactCreated', { runId, artifactId: artifact.id });
       return;
     }
 
@@ -313,6 +342,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         currentUser: auth.getCurrentUser() ?? (auth.requiresSetup() ? store.getAll<User>('users').map(stripPasswordHash)[0] ?? null : null),
         analytics: null,
         sandboxConfig: getSandboxConfig(),
+        license: getLicenseStatusObj(),
         storeVersion: store.getVersion()
       };
     },
@@ -365,6 +395,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       };
       store.put('missions', mission.id, mission);
       recordAudit('create', 'mission', mission.id, title);
+      void pluginRuntime.invokeHook('onMissionCreated', { missionId: mission.id });
       return mission;
     },
     updateMission(id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>): Mission {
@@ -402,6 +433,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       };
       store.put('tasks', task.id, task);
       recordAudit('create', 'task', task.id, title);
+      void pluginRuntime.invokeHook('onTaskCreated', { taskId: task.id, missionId: missionId ?? undefined });
       return task;
     },
     updateTask(id: string, fields: Partial<Pick<Task, 'title' | 'description' | 'priority' | 'status'>>): Task {
@@ -450,6 +482,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       store.put('tasks', task.id, { ...task, status: 'running', assigneeAgentId: agent.id, updatedAt: at });
       store.put('agents', agent.id, { ...agent, status: 'running' });
       addEvent(run.id, task.id, 'Run started', `${agent.name} started ${task.title}.`);
+      void pluginRuntime.invokeHook('beforeRunStart', { runId: run.id, taskId });
 
       const selectedRunner = runners[profile.type];
       if (!selectedRunner) throw new Error(`No runner available for type: ${profile.type}`);
@@ -538,15 +571,13 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     },
     installMarketplaceEntry(entryId: string): void {
       requireRole('admin');
-      const entry = store.getById<MarketplaceEntry>('marketplace', entryId);
-      if (!entry) throw new Error(`Marketplace entry not found: ${entryId}`);
-      store.put('marketplace', entry.id, { ...entry, installed: true, updatedAt: nowIso() });
+      const entry = marketplace.installEntry(entryId);
+      recordAudit('install', 'marketplace', entryId, entry.name);
     },
     uninstallMarketplaceEntry(entryId: string): void {
       requireRole('admin');
-      const entry = store.getById<MarketplaceEntry>('marketplace', entryId);
-      if (!entry) throw new Error(`Marketplace entry not found: ${entryId}`);
-      store.put('marketplace', entry.id, { ...entry, installed: false, updatedAt: nowIso() });
+      marketplace.uninstallEntry(entryId);
+      recordAudit('uninstall', 'marketplace', entryId, '');
     },
     togglePlugin(pluginId: string, enabled: boolean): void {
       requireRole('admin');
@@ -733,6 +764,20 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       lines.push(`totalCostUsd,${analytics.totalCostUsd}`);
       lines.push(`totalTokens,${analytics.totalTokens}`);
       return lines.join('\n');
+    },
+    activateLicense(key: string, email: string): LicenseStatus {
+      requireRole('admin');
+      const info = license.activate(key, email);
+      recordAudit('activate', 'license', 'license', `Tier: ${info.tier}, email: ${info.email}`);
+      return getLicenseStatusObj();
+    },
+    deactivateLicense(): void {
+      requireRole('admin');
+      license.deactivate();
+      recordAudit('deactivate', 'license', 'license', '');
+    },
+    getLicenseStatus(): LicenseStatus {
+      return getLicenseStatusObj();
     }
   };
 

@@ -72,5 +72,10 @@ export const commandCenterClient = {
   getAuditLog: () => window.commandCenter.getAuditLog(),
 
   // Data export
-  exportData: (format: 'json' | 'csv') => window.commandCenter.exportData(format)
+  exportData: (format: 'json' | 'csv') => window.commandCenter.exportData(format),
+
+  // License
+  activateLicense: (key: string, email: string) => window.commandCenter.activateLicense(key, email),
+  deactivateLicense: () => window.commandCenter.deactivateLicense(),
+  getLicenseStatus: () => window.commandCenter.getLicenseStatus()
 };
