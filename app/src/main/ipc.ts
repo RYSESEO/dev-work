@@ -1,4 +1,5 @@
 import { app, ipcMain } from 'electron';
+import { getNotificationPrefs, setNotificationPrefs, type NotificationPreferences } from './notifications.js';
 import path from 'node:path';
 import { createAppStore } from './db/appStore.js';
 import { createAuthService } from './services/auth.js';
@@ -71,6 +72,9 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('run:stop', async (_event, runId: string) =>
     (await getOrchestrator()).stopRun(runId)
+  );
+  ipcMain.handle('run:log', async (_event, runId: string) =>
+    (await getOrchestrator()).getRunLog(runId)
   );
 
   // Approvals
@@ -162,5 +166,11 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('license:status', async () =>
     (await getOrchestrator()).getLicenseStatus()
+  );
+
+  // Notifications
+  ipcMain.handle('notifications:get', () => getNotificationPrefs());
+  ipcMain.handle('notifications:set', (_event, prefs: Partial<NotificationPreferences>) =>
+    setNotificationPrefs(prefs)
   );
 }

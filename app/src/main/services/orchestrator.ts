@@ -6,6 +6,7 @@ import { CommandRunner } from '../runners/commandRunner.js';
 import { OpenAIRunner } from '../runners/openaiRunner.js';
 import type { Runner, RunnerHandle } from '../runners/types.js';
 import type { RunnerToHostMessage } from '../../shared/runnerProtocol.js';
+import { notifyApprovalRequest, notifyRunComplete, notifyRunFailed } from '../notifications.js';
 import { findMatchingGrant } from './approvalPolicy.js';
 import { type AuthService, hashPassword, stripPasswordHash } from './auth.js';
 import { createLicenseService } from './license.js';
@@ -60,6 +61,7 @@ export interface Orchestrator {
   // Runs
   launchRun(taskId: string, agentProfileId: string, prompt: string): Promise<Run>;
   stopRun(runId: string): void;
+  getRunLog(runId: string): Promise<string>;
   // Approvals
   approveRequest(approvalRequestId: string): void;
   rejectRequest(approvalRequestId: string, reason: string): void;
@@ -236,6 +238,8 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     handles.delete(run.id);
     emitRunEvent(run.id, status === 'completed' ? 'complete' : status);
     void pluginRuntime.invokeHook('afterRunComplete', { runId: run.id, taskId: run.taskId });
+    if (status === 'completed') notifyRunComplete(run.id);
+    if (status === 'failed') notifyRunFailed(run.id, body);
   }
 
   function handleRunnerMessage(runId: string, message: RunnerToHostMessage): void {
@@ -266,6 +270,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       addEvent(runId, run.taskId, 'Approval requested', request.title, 'warning');
       emitRunEvent(runId, 'approval_request');
       void pluginRuntime.invokeHook('onApprovalRequest', { runId, approvalId: request.id });
+      notifyApprovalRequest(request.title);
       return;
     }
 
@@ -519,6 +524,14 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       }
       finalizeRun(runId, 'stopped', 'Stopped by user.');
       log.info('Run stopped by user', { runId });
+    },
+    async getRunLog(runId: string): Promise<string> {
+      const logFile = path.join(process.cwd(), 'logs', `${runId}.log`);
+      try {
+        return await fs.promises.readFile(logFile, 'utf-8');
+      } catch {
+        return '';
+      }
     },
     approveRequest(approvalRequestId: string): void {
       requireRole('admin', 'operator');

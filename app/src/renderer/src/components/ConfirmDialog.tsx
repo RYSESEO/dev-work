@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type JSX } from 'react';
+import { FocusTrap } from './FocusTrap';
 
 interface Props {
   title: string;
@@ -19,7 +20,7 @@ export function ConfirmDialog({
   variant = 'danger',
   onConfirm,
   onCancel
-}: Props) {
+}: Props): JSX.Element {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -32,22 +33,24 @@ export function ConfirmDialog({
   }, [onCancel]);
 
   return (
-    <div className="confirm-overlay" onClick={onCancel}>
-      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className={`confirm-icon confirm-icon-${variant}`}>
-          <AlertTriangle size={22} />
+    <div className="confirm-overlay" onClick={onCancel} role="presentation">
+      <FocusTrap>
+        <div className="confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+          <div className={`confirm-icon confirm-icon-${variant}`}>
+            <AlertTriangle size={22} aria-hidden="true" />
+          </div>
+          <h3 id="confirm-title" className="confirm-title">{title}</h3>
+          <p id="confirm-message" className="confirm-message">{message}</p>
+          <div className="confirm-actions">
+            <button ref={cancelRef} className="secondary-button" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+            <button className={variant === 'danger' ? 'danger-button' : 'warning-button'} onClick={onConfirm}>
+              {confirmLabel}
+            </button>
+          </div>
         </div>
-        <h3 className="confirm-title">{title}</h3>
-        <p className="confirm-message">{message}</p>
-        <div className="confirm-actions">
-          <button ref={cancelRef} className="secondary-button" onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button className={variant === 'danger' ? 'danger-button' : 'warning-button'} onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }

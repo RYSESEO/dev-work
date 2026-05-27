@@ -1,33 +1,40 @@
-:root {
-  --bg: #f8faf9;
-  --bg-ink: #e7efec;
-  --surface: #ffffff;
-  --surface-soft: #eef5f3;
-  --surface-deep: #dfe9e6;
-  --text: #1c252b;
-  --text-strong: #111b20;
-  --muted: #66747b;
-  --muted-strong: #46545b;
-  --border: rgba(124, 145, 144, 0.28);
-  --border-strong: rgba(83, 103, 101, 0.36);
-  --accent: #2f7d74;
-  --accent-dark: #225f59;
-  --accent-soft: #dcefeb;
-  --danger: #b9524d;
-  --danger-soft: #fae7e4;
-  --warning: #9c7129;
-  --warning-soft: #f7edda;
-  --success: #477c57;
-  --success-soft: #e2f0e5;
-  --shadow: 0 24px 80px rgba(36, 57, 55, 0.11);
-  --shadow-soft: 0 16px 48px rgba(36, 57, 55, 0.08);
-  color: var(--text);
-  background: var(--bg);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-}
+/* ========================================
+   styles.css — Component & Layout Styles
+   ========================================
+   Theme tokens are in theme.css
+   
+   Sections:
+   1. Reset & Base Typography
+   2. Layout (app shell, panels, data tables)
+   3. Header & Command Bar
+   4. Status & Metric Components
+   5. Mission Control (task board, agent roster, etc.)
+   6. Marketplace
+   7. Forms & Inputs
+   8. Workflows
+   9. Analytics
+  10. Security / Sandbox
+  11. Toast Notifications
+  12. Error Boundary
+  13. Button States
+  14. Sidebar Navigation
+  15. Onboarding / Welcome
+  16. Empty States
+  17. Progress Checklist
+  18. Inline Styles
+  19. Responsive / Mobile
+  20. Confirm Dialog
+  21. Inline Edit
+  22. Accessibility (skip-nav)
+  23. Settings (toggle rows)
+  24. Filter Bar
+  25. Run Log Viewer
+  26. Reduced Motion
+   ======================================== */
 
+/* ----------------------------------------
+   1. Reset & Base Typography
+   ---------------------------------------- */
 * {
   box-sizing: border-box;
 }
@@ -1786,6 +1793,167 @@ textarea {
 .icon-button-sm.danger:hover {
   color: var(--danger);
   background: var(--danger-soft);
+}
+
+/* Skip nav */
+.skip-nav {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  z-index: 9999;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 6px 0;
+}
+
+.skip-nav:focus {
+  top: 0;
+}
+
+/* Settings toggle row */
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.settings-toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 180px;
+  color: var(--muted);
+}
+
+.search-input-wrap .text-input {
+  flex: 1;
+}
+
+.filter-select {
+  min-width: 140px;
+}
+
+/* Run log viewer */
+.run-log-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.run-log-panel {
+  background: var(--surface);
+  border-radius: 12px;
+  width: min(90vw, 800px);
+  height: min(80vh, 600px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.run-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.run-log-id {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.run-log-live-badge {
+  background: var(--success);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.run-log-content {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.run-log-line {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.1rem 0;
+}
+
+.run-log-line.log-error .log-msg { color: var(--danger); }
+.run-log-line.log-success .log-msg { color: var(--success); }
+
+.log-ts {
+  color: var(--muted);
+  flex-shrink: 0;
+  min-width: 7ch;
+}
+
+.log-msg {
+  word-break: break-word;
+}
+
+.run-log-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.run-log-streaming {
+  color: var(--success);
+  font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {

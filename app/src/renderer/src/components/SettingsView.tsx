@@ -1,5 +1,6 @@
-import { Edit, Eye, EyeOff, Key, Plus, Settings, Trash2 } from 'lucide-react';
-import { useState, type JSX } from 'react';
+import { Bell, Edit, Eye, EyeOff, Key, Moon, Plus, Settings, Sun, Trash2 } from 'lucide-react';
+import type { ThemeMode } from '../App';
+import { useEffect, useState, type JSX } from 'react';
 import type { CommandRunnerProfile, DashboardSnapshot, OpenAIRunnerProfile, RunnerProfile } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
 import { useToast } from './ToastProvider';
@@ -8,6 +9,8 @@ import { ConfirmDialog } from './ConfirmDialog';
 interface Props {
   snapshot: DashboardSnapshot;
   onRefresh(): Promise<void>;
+  themeMode: ThemeMode;
+  onThemeChange(mode: ThemeMode): void;
 }
 
 type ProfileType = 'command' | 'openai';
@@ -43,7 +46,7 @@ interface LicenseFormState {
   email: string;
 }
 
-export function SettingsView({ snapshot, onRefresh }: Props): JSX.Element {
+export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: Props): JSX.Element {
   const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -54,6 +57,26 @@ export function SettingsView({ snapshot, onRefresh }: Props): JSX.Element {
 
   const [licenseForm, setLicenseForm] = useState<LicenseFormState>({ key: '', email: '' });
   const [licenseLoading, setLicenseLoading] = useState(false);
+
+  const [notifPrefs, setNotifPrefs] = useState({
+    enabled: true,
+    onApprovalRequest: true,
+    onRunComplete: true,
+    onRunFailed: true
+  });
+
+  useEffect(() => {
+    void commandCenterClient.getNotificationPrefs().then(setNotifPrefs);
+  }, []);
+
+  async function updateNotifPref(key: string, value: boolean): Promise<void> {
+    try {
+      const updated = await commandCenterClient.setNotificationPrefs({ [key]: value });
+      setNotifPrefs(updated);
+    } catch (err) {
+      toast.error(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
 
   function openAdd(): void {
     setEditingId(null);
@@ -286,6 +309,62 @@ export function SettingsView({ snapshot, onRefresh }: Props): JSX.Element {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Theme */}
+      <section className="panel">
+        <div className="panel-heading">
+          <span className="panel-icon" aria-hidden="true">{themeMode === 'dark' || (themeMode === 'system' && document.documentElement.getAttribute('data-theme') === 'dark') ? <Moon size={18} /> : <Sun size={18} />}</span>
+          <div>
+            <h2>Appearance</h2>
+            <p>Switch between light, dark, or follow your system preference.</p>
+          </div>
+        </div>
+        <div className="settings-theme-toggle" style={{ padding: '0.75rem 1rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {(['light', 'dark', 'system'] as const).map((mode) => (
+              <button
+                key={mode}
+                className={themeMode === mode ? 'primary-button' : 'secondary-button'}
+                onClick={() => onThemeChange(mode)}
+                style={{ textTransform: 'capitalize' }}
+              >
+                {mode === 'light' && <Sun size={14} />}
+                {mode === 'dark' && <Moon size={14} />}
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Notifications */}
+      <section className="panel">
+        <div className="panel-heading">
+          <span className="panel-icon" aria-hidden="true"><Bell size={18} /></span>
+          <div>
+            <h2>Notifications</h2>
+            <p>Desktop notification preferences for system events.</p>
+          </div>
+        </div>
+        <div style={{ padding: '0.75rem 1rem' }}>
+          {[
+            { key: 'enabled', label: 'Enable desktop notifications' },
+            { key: 'onApprovalRequest', label: 'Approval requests' },
+            { key: 'onRunComplete', label: 'Run completions' },
+            { key: 'onRunFailed', label: 'Run failures' }
+          ].map(({ key, label }) => (
+            <label key={key} className="settings-toggle-row">
+              <input
+                type="checkbox"
+                checked={notifPrefs[key as keyof typeof notifPrefs]}
+                onChange={(e) => void updateNotifPref(key, e.target.checked)}
+                disabled={key !== 'enabled' && !notifPrefs.enabled}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
       </section>
 
       {/* Runner profiles */}

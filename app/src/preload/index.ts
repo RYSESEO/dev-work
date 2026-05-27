@@ -49,6 +49,7 @@ const commandCenter = {
   launchRun: (taskId: string, agentProfileId: string, prompt: string): Promise<Run> =>
     ipcRenderer.invoke('run:launch', taskId, agentProfileId, prompt),
   stopRun: (runId: string): Promise<void> => ipcRenderer.invoke('run:stop', runId),
+  getRunLog: (runId: string): Promise<string> => ipcRenderer.invoke('run:log', runId),
 
   // Approvals
   approveRequest: (approvalRequestId: string): Promise<void> => ipcRenderer.invoke('approval:approve', approvalRequestId),
@@ -103,7 +104,26 @@ const commandCenter = {
   activateLicense: (key: string, email: string): Promise<LicenseStatus> =>
     ipcRenderer.invoke('license:activate', key, email),
   deactivateLicense: (): Promise<void> => ipcRenderer.invoke('license:deactivate'),
-  getLicenseStatus: (): Promise<LicenseStatus> => ipcRenderer.invoke('license:status')
+  getLicenseStatus: (): Promise<LicenseStatus> => ipcRenderer.invoke('license:status'),
+
+  // Notifications
+  getNotificationPrefs: (): Promise<{
+    enabled: boolean;
+    onApprovalRequest: boolean;
+    onRunComplete: boolean;
+    onRunFailed: boolean;
+  }> => ipcRenderer.invoke('notifications:get'),
+  setNotificationPrefs: (prefs: Partial<{
+    enabled: boolean;
+    onApprovalRequest: boolean;
+    onRunComplete: boolean;
+    onRunFailed: boolean;
+  }>): Promise<{
+    enabled: boolean;
+    onApprovalRequest: boolean;
+    onRunComplete: boolean;
+    onRunFailed: boolean;
+  }> => ipcRenderer.invoke('notifications:set', prefs)
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);
