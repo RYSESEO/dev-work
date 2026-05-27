@@ -3,6 +3,7 @@ import type {
   AnalyticsSnapshot,
   AuditLogEntry,
   DashboardSnapshot,
+  LicenseStatus,
   Mission,
   Run,
   RunnerProfile,
@@ -96,7 +97,13 @@ const commandCenter = {
   getAuditLog: (): Promise<AuditLogEntry[]> => ipcRenderer.invoke('audit:get'),
 
   // Data export
-  exportData: (format: 'json' | 'csv'): Promise<string> => ipcRenderer.invoke('data:export', format)
+  exportData: (format: 'json' | 'csv'): Promise<string> => ipcRenderer.invoke('data:export', format),
+
+  // License
+  activateLicense: (key: string, email: string): Promise<LicenseStatus> =>
+    ipcRenderer.invoke('license:activate', key, email),
+  deactivateLicense: (): Promise<void> => ipcRenderer.invoke('license:deactivate'),
+  getLicenseStatus: (): Promise<LicenseStatus> => ipcRenderer.invoke('license:status')
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);

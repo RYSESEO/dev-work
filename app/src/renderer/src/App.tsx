@@ -127,7 +127,7 @@ export function App(): JSX.Element {
               {activeTab === 'team' && <TeamView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'security' && <SecurityView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
-              {activeTab === 'settings' && <SettingsView snapshot={snapshot} />}
+              {activeTab === 'settings' && <SettingsView snapshot={snapshot} onRefresh={refresh} />}
             </ErrorBoundary>
           </div>
         </div>

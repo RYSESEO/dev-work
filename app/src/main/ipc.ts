@@ -152,4 +152,15 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('data:export', async (_event, format: 'json' | 'csv') =>
     (await getOrchestrator()).exportData(format)
   );
+
+  // License
+  ipcMain.handle('license:activate', async (_event, key: string, email: string) =>
+    (await getOrchestrator()).activateLicense(key, email)
+  );
+  ipcMain.handle('license:deactivate', async () =>
+    (await getOrchestrator()).deactivateLicense()
+  );
+  ipcMain.handle('license:status', async () =>
+    (await getOrchestrator()).getLicenseStatus()
+  );
 }

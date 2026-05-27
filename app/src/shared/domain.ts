@@ -10,7 +10,8 @@ export type IdPrefix =
   | 'runner'
   | 'plugin'
   | 'workflow'
-  | 'user';
+  | 'user'
+  | 'license';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -273,6 +274,30 @@ export interface SandboxConfig {
   timeoutSeconds: number;
 }
 
+export type LicenseTier = 'free' | 'pro' | 'team';
+
+export type LicenseFeature =
+  | 'unlimited_agents'
+  | 'unlimited_runners'
+  | 'marketplace_install'
+  | 'plugin_system'
+  | 'data_export'
+  | 'audit_log'
+  | 'workflow_engine'
+  | 'priority_support'
+  | 'custom_branding'
+  | 'team_management';
+
+export interface LicenseStatus {
+  tier: LicenseTier;
+  maxAgents: number;
+  maxRunners: number;
+  maxUsers: number;
+  features: LicenseFeature[];
+  validUntil: string | null;
+  activated: boolean;
+}
+
 export interface DashboardSnapshot {
   missions: Mission[];
   tasks: Task[];
@@ -292,6 +317,7 @@ export interface DashboardSnapshot {
   currentUser: SafeUser | null;
   analytics: AnalyticsSnapshot | null;
   sandboxConfig: SandboxConfig;
+  license: LicenseStatus;
   storeVersion?: number;
 }
 
