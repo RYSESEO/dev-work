@@ -173,4 +173,32 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('notifications:set', (_event, prefs: Partial<NotificationPreferences>) =>
     setNotificationPrefs(prefs)
   );
+
+  // Telemetry
+  ipcMain.handle('telemetry:getPrefs', async () =>
+    (await getOrchestrator()).getTelemetryPrefs()
+  );
+  ipcMain.handle('telemetry:setPrefs', async (_event, update: Record<string, unknown>) =>
+    (await getOrchestrator()).setTelemetryPrefs(update as Partial<{ enabled: boolean; webhookUrl: string }>)
+  );
+  ipcMain.handle('telemetry:getEvents', async (_event, limit?: number) =>
+    (await getOrchestrator()).getTelemetryEvents(limit)
+  );
+  ipcMain.handle('telemetry:getSummary', async () =>
+    (await getOrchestrator()).getTelemetrySummary()
+  );
+
+  // Backup & restore
+  ipcMain.handle('backup:create', async (_event, targetPath: string) =>
+    (await getOrchestrator()).createBackup(targetPath)
+  );
+  ipcMain.handle('backup:restore', async (_event, sourcePath: string) =>
+    (await getOrchestrator()).restoreBackup(sourcePath)
+  );
+  ipcMain.handle('backup:list', async (_event, directory: string) =>
+    (await getOrchestrator()).listBackups(directory)
+  );
+  ipcMain.handle('backup:auto', async (_event, dataDir: string) =>
+    (await getOrchestrator()).autoBackup(dataDir)
+  );
 }

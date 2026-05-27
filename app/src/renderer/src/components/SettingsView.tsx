@@ -1,7 +1,7 @@
-import { Bell, Edit, Eye, EyeOff, Key, Moon, Plus, Settings, Sun, Trash2 } from 'lucide-react';
+import { BarChart3, Bell, Database, Edit, Eye, EyeOff, Key, Moon, Plus, Settings, Sun, Trash2 } from 'lucide-react';
 import type { ThemeMode } from '../App';
 import { useEffect, useState, type JSX } from 'react';
-import type { CommandRunnerProfile, DashboardSnapshot, OpenAIRunnerProfile, RunnerProfile } from '../../../shared/domain';
+import type { AnthropicRunnerProfile, CommandRunnerProfile, CustomHttpRunnerProfile, DashboardSnapshot, OllamaRunnerProfile, OpenAIRunnerProfile, RunnerProfile } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
 import { useToast } from './ToastProvider';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -13,7 +13,7 @@ interface Props {
   onThemeChange(mode: ThemeMode): void;
 }
 
-type ProfileType = 'command' | 'openai';
+type ProfileType = 'command' | 'openai' | 'anthropic' | 'ollama' | 'custom-http';
 
 interface RunnerFormState {
   name: string;
@@ -65,8 +65,15 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
     onRunFailed: true
   });
 
+  const [telemetryPrefs, setTelemetryPrefs] = useState({ enabled: false, webhookUrl: '' });
+  const [webhookDraft, setWebhookDraft] = useState('');
+
   useEffect(() => {
     void commandCenterClient.getNotificationPrefs().then(setNotifPrefs);
+    void commandCenterClient.getTelemetryPrefs().then((p) => {
+      setTelemetryPrefs(p);
+      setWebhookDraft(p.webhookUrl);
+    });
   }, []);
 
   async function updateNotifPref(key: string, value: boolean): Promise<void> {
@@ -94,9 +101,9 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
       args: profile.type === 'command' ? profile.args.join(' ') : '',
       workspacePath: profile.workspacePath,
       costPerThousandTokensUsd: String(profile.costPerThousandTokensUsd),
-      model: profile.type === 'openai' ? profile.model : 'gpt-4o',
-      maxTokens: profile.type === 'openai' ? String(profile.maxTokens) : '4096',
-      systemPrompt: profile.type === 'openai' ? profile.systemPrompt : '',
+      model: (profile.type === 'openai' || profile.type === 'anthropic') ? profile.model : profile.type === 'ollama' ? profile.model : 'gpt-4o',
+      maxTokens: (profile.type === 'openai' || profile.type === 'anthropic') ? String(profile.maxTokens) : '4096',
+      systemPrompt: (profile.type === 'openai' || profile.type === 'anthropic') ? profile.systemPrompt : '',
       envVars: envEntries
     });
     setShowForm(true);
@@ -171,6 +178,43 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
             workspacePath: form.workspacePath.trim(),
             env,
             costPerThousandTokensUsd: cost
+          };
+          await commandCenterClient.addRunnerProfile(profile);
+        } else if (form.type === 'anthropic') {
+          const profile: AnthropicRunnerProfile = {
+            id,
+            name: form.name.trim(),
+            type: 'anthropic',
+            model: form.model.trim() || 'claude-sonnet-4-20250514',
+            workspacePath: form.workspacePath.trim(),
+            env,
+            costPerThousandTokensUsd: cost,
+            maxTokens: parseInt(form.maxTokens, 10) || 4096,
+            systemPrompt: form.systemPrompt
+          };
+          await commandCenterClient.addRunnerProfile(profile);
+        } else if (form.type === 'ollama') {
+          const profile: OllamaRunnerProfile = {
+            id,
+            name: form.name.trim(),
+            type: 'ollama',
+            model: form.model.trim() || 'llama3',
+            workspacePath: form.workspacePath.trim(),
+            env,
+            costPerThousandTokensUsd: cost,
+            ollamaHost: env.OLLAMA_HOST || 'http://localhost:11434'
+          };
+          await commandCenterClient.addRunnerProfile(profile);
+        } else if (form.type === 'custom-http') {
+          const profile: CustomHttpRunnerProfile = {
+            id,
+            name: form.name.trim(),
+            type: 'custom-http',
+            workspacePath: form.workspacePath.trim(),
+            env,
+            costPerThousandTokensUsd: cost,
+            endpointUrl: env.ENDPOINT_URL || '',
+            headers: {}
           };
           await commandCenterClient.addRunnerProfile(profile);
         } else {
@@ -367,6 +411,81 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
         </div>
       </section>
 
+      {/* Telemetry */}
+      <section className="panel">
+        <div className="panel-heading">
+          <span className="panel-icon" aria-hidden="true"><BarChart3 size={18} /></span>
+          <div>
+            <h2>Telemetry</h2>
+            <p>Anonymous usage analytics (opt-in). No data leaves your machine unless a webhook is configured.</p>
+          </div>
+        </div>
+        <div style={{ padding: '0.75rem 1rem' }}>
+          <label className="settings-toggle-row">
+            <input
+              type="checkbox"
+              checked={telemetryPrefs.enabled}
+              onChange={async (e) => {
+                try {
+                  const updated = await commandCenterClient.setTelemetryPrefs({ enabled: e.target.checked });
+                  setTelemetryPrefs(updated);
+                } catch (err) {
+                  toast.error(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                }
+              }}
+            />
+            <span>Enable usage tracking</span>
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', alignItems: 'center' }}>
+            <input
+              className="text-input"
+              style={{ flex: 1 }}
+              placeholder="Webhook URL (optional)"
+              value={webhookDraft}
+              onChange={(e) => setWebhookDraft(e.target.value)}
+              disabled={!telemetryPrefs.enabled}
+            />
+            <button
+              className="secondary-button"
+              disabled={!telemetryPrefs.enabled || webhookDraft === telemetryPrefs.webhookUrl}
+              onClick={async () => {
+                try {
+                  const updated = await commandCenterClient.setTelemetryPrefs({ webhookUrl: webhookDraft });
+                  setTelemetryPrefs(updated);
+                  toast.success('Webhook URL saved.');
+                } catch (err) {
+                  toast.error(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                }
+              }}
+            >Save</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Backup & Restore */}
+      <section className="panel">
+        <div className="panel-heading">
+          <span className="panel-icon" aria-hidden="true"><Database size={18} /></span>
+          <div>
+            <h2>Backup &amp; Restore</h2>
+            <p>Export and import your data for safekeeping.</p>
+          </div>
+        </div>
+        <div style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="secondary-button"
+            onClick={async () => {
+              try {
+                const backupPath = await commandCenterClient.autoBackup('.');
+                toast.success(`Backup created: ${backupPath}`);
+              } catch (err) {
+                toast.error(`Backup failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+              }
+            }}
+          >Create Backup</button>
+        </div>
+      </section>
+
       {/* Runner profiles */}
       <section className="panel">
         <div className="panel-heading">
@@ -392,6 +511,9 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
                 <select className="text-input" value={form.type} disabled={!!editingId} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as ProfileType }))}>
                   <option value="command">Command</option>
                   <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic Claude</option>
+                  <option value="ollama">Ollama (Local)</option>
+                  <option value="custom-http">Custom HTTP</option>
                 </select>
               </label>
             </div>
@@ -420,7 +542,7 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
               </div>
             )}
 
-            {form.type === 'openai' && (
+            {(form.type === 'openai' || form.type === 'anthropic') && (
               <div className="form-row">
                 <label style={{ flex: 1 }}>
                   System prompt
@@ -498,7 +620,7 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
                 <tr key={profile.id}>
                   <td>{profile.name}</td>
                   <td>{profile.type}</td>
-                  <td>{profile.type === 'command' ? `${profile.command} ${profile.args.join(' ')}` : profile.model}</td>
+                  <td>{profile.type === 'command' ? `${profile.command} ${profile.args.join(' ')}` : profile.type === 'custom-http' ? 'HTTP endpoint' : 'model' in profile ? profile.model : '—'}</td>
                   <td>{profile.workspacePath}</td>
                   <td>${profile.costPerThousandTokensUsd.toFixed(4)} / 1K</td>
                   <td>{Object.keys(profile.env).length} vars</td>
