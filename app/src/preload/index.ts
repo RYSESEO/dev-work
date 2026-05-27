@@ -1,8 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AnalyticsSnapshot,
+  ApiKey,
+  ApiScope,
   AuditLogEntry,
   DashboardSnapshot,
+  ExternalIntegration,
   LicenseStatus,
   Mission,
   Run,
@@ -11,6 +14,8 @@ import type {
   SandboxConfig,
   Task,
   User,
+  WebhookEvent,
+  WebhookServerConfig,
   WorkflowRun,
   WorkflowStep,
   WorkflowTemplate
@@ -143,7 +148,21 @@ const commandCenter = {
   listBackups: (directory: string): Promise<Array<{ version: string; createdAt: string; collections: number; totalRecords: number }>> =>
     ipcRenderer.invoke('backup:list', directory),
   autoBackup: (dataDir: string): Promise<string> =>
-    ipcRenderer.invoke('backup:auto', dataDir)
+    ipcRenderer.invoke('backup:auto', dataDir),
+
+  // Webhook / API integration
+  createApiKey: (name: string, scopes: ApiScope[]): Promise<{ key: Omit<ApiKey, 'keyHash'>; rawKey: string }> =>
+    ipcRenderer.invoke('apiKey:create', name, scopes),
+  revokeApiKey: (id: string): Promise<void> => ipcRenderer.invoke('apiKey:revoke', id),
+  listApiKeys: (): Promise<Array<Omit<ApiKey, 'keyHash'>>> => ipcRenderer.invoke('apiKey:list'),
+  getWebhookConfig: (): Promise<WebhookServerConfig> => ipcRenderer.invoke('webhook:getConfig'),
+  updateWebhookConfig: (update: Partial<WebhookServerConfig>): Promise<WebhookServerConfig> =>
+    ipcRenderer.invoke('webhook:updateConfig', update),
+  getWebhookEvents: (limit?: number): Promise<WebhookEvent[]> => ipcRenderer.invoke('webhook:getEvents', limit),
+  listIntegrations: (): Promise<ExternalIntegration[]> => ipcRenderer.invoke('integration:list'),
+  createIntegration: (name: string, type: ExternalIntegration['type'], apiKeyId: string): Promise<ExternalIntegration> =>
+    ipcRenderer.invoke('integration:create', name, type, apiKeyId),
+  deleteIntegration: (id: string): Promise<void> => ipcRenderer.invoke('integration:delete', id)
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);

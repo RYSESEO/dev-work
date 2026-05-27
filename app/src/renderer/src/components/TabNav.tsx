@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   GitBranch,
   Package,
+  Plug,
   Settings,
   Shield,
   TrendingUp,
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 
-export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'marketplace' | 'analytics' | 'team' | 'security' | 'usage' | 'settings';
+export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'marketplace' | 'analytics' | 'team' | 'security' | 'usage' | 'integrations' | 'settings';
 
 interface NavGroup {
   label: string;
@@ -48,6 +49,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'team', label: 'Team', icon: Users, shortcut: '8' },
       { id: 'security', label: 'Security', icon: Shield, shortcut: '9' },
+      { id: 'integrations', label: 'Integrations', icon: Plug, shortcut: '' },
       { id: 'settings', label: 'Settings', icon: Settings, shortcut: '0' }
     ]
   }

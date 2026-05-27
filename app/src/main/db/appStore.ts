@@ -24,7 +24,9 @@ export type StoreCollection =
   | 'workflowRuns'
   | 'sandboxConfig'
   | 'settings'
-  | 'telemetry';
+  | 'telemetry'
+  | 'apiKeys'
+  | 'integrations';
 
 export interface AppStore {
   put<T extends { id: string }>(collection: StoreCollection, id: string, value: T): void;
@@ -55,7 +57,9 @@ const collections: StoreCollection[] = [
   'workflowRuns',
   'sandboxConfig',
   'settings',
-  'telemetry'
+  'telemetry',
+  'apiKeys',
+  'integrations'
 ];
 
 const require = createRequire(import.meta.url);

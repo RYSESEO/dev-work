@@ -17,6 +17,8 @@ import { createMarketplaceService } from './marketplace.js';
 import { createPluginRuntime } from './pluginRuntime.js';
 import { createTelemetryService, type TelemetryEvent, type TelemetryPreferences, type TelemetryService } from './telemetry.js';
 import { createBackupService, type BackupMetadata, type BackupService } from './backup.js';
+import { createApiKeyService, type ApiKeyService } from './apiKeys.js';
+import { createWebhookServer, type WebhookServer } from './webhookServer.js';
 import {
   createId,
   isTerminalRunStatus,
@@ -43,7 +45,12 @@ import {
   type WorkflowRun,
   type WorkflowStep,
   type WorkflowStepResult,
-  type WorkflowTemplate
+  type WorkflowTemplate,
+  type ApiKey,
+  type ApiScope,
+  type ExternalIntegration,
+  type WebhookServerConfig,
+  type WebhookEvent
 } from '../../shared/domain.js';
 
 export interface Orchestrator {
@@ -110,6 +117,16 @@ export interface Orchestrator {
   restoreBackup(sourcePath: string): Promise<BackupMetadata>;
   listBackups(directory: string): Promise<BackupMetadata[]>;
   autoBackup(dataDir: string): Promise<string>;
+  // Webhook / API integration
+  createApiKey(name: string, scopes: ApiScope[]): { key: Omit<ApiKey, 'keyHash'>; rawKey: string };
+  revokeApiKey(id: string): void;
+  listApiKeys(): Array<Omit<ApiKey, 'keyHash'>>;
+  getWebhookConfig(): WebhookServerConfig;
+  updateWebhookConfig(update: Partial<WebhookServerConfig>): Promise<WebhookServerConfig>;
+  getWebhookEvents(limit?: number): WebhookEvent[];
+  getIntegrations(): ExternalIntegration[];
+  createIntegration(name: string, type: ExternalIntegration['type'], apiKeyId: string): ExternalIntegration;
+  deleteIntegration(id: string): void;
 }
 
 const noopAuth: AuthService = {
@@ -128,8 +145,17 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
   const pluginRuntime = createPluginRuntime(store);
   const telemetry: TelemetryService = createTelemetryService(store);
   const backup: BackupService = createBackupService(store);
+  const apiKeysSvc: ApiKeyService = createApiKeyService(store);
+  const webhookSrv: WebhookServer = createWebhookServer(store, apiKeysSvc);
   seedDefaults(store);
   log.info('Orchestrator initialized');
+
+  const whConfig = webhookSrv.getConfig();
+  if (whConfig.enabled) {
+    void webhookSrv.start().catch((err: unknown) =>
+      log.error('Failed to auto-start webhook server', { error: err instanceof Error ? err.message : String(err) })
+    );
+  }
 
   function getLicenseStatusObj(): LicenseStatus {
     const limits = license.getLimits();
@@ -369,6 +395,9 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         analytics: null,
         sandboxConfig: getSandboxConfig(),
         license: getLicenseStatusObj(),
+        integrations: webhookSrv.getIntegrations(),
+        apiKeys: apiKeysSvc.list(),
+        webhookServer: webhookSrv.getConfig(),
         storeVersion: store.getVersion()
       };
     },
@@ -842,6 +871,54 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     },
     async autoBackup(dataDir: string): Promise<string> {
       return backup.autoBackup(dataDir);
+    },
+    // Webhook / API integration
+    createApiKey(name: string, scopes: ApiScope[]): { key: Omit<ApiKey, 'keyHash'>; rawKey: string } {
+      requireRole('admin');
+      const result = apiKeysSvc.create(name, scopes);
+      recordAudit('apiKey:create', 'apiKey', result.key.id, `Created API key: ${name}`);
+      const { keyHash: _unused, ...safe } = result.key;
+      void _unused;
+      return { key: safe, rawKey: result.rawKey };
+    },
+    revokeApiKey(id: string): void {
+      requireRole('admin');
+      apiKeysSvc.revoke(id);
+      recordAudit('apiKey:revoke', 'apiKey', id, 'Revoked API key');
+    },
+    listApiKeys(): Array<Omit<ApiKey, 'keyHash'>> {
+      return apiKeysSvc.list();
+    },
+    getWebhookConfig(): WebhookServerConfig {
+      return webhookSrv.getConfig();
+    },
+    async updateWebhookConfig(update: Partial<WebhookServerConfig>): Promise<WebhookServerConfig> {
+      requireRole('admin');
+      const config = webhookSrv.updateConfig(update);
+      if (config.enabled && !webhookSrv.isRunning()) {
+        await webhookSrv.start();
+      } else if (!config.enabled && webhookSrv.isRunning()) {
+        await webhookSrv.stop();
+      }
+      recordAudit('webhook:config', 'webhook', 'config', `Updated webhook config: enabled=${config.enabled}, port=${config.port}`);
+      return config;
+    },
+    getWebhookEvents(limit?: number): WebhookEvent[] {
+      return webhookSrv.getEvents(limit);
+    },
+    getIntegrations(): ExternalIntegration[] {
+      return webhookSrv.getIntegrations();
+    },
+    createIntegration(name: string, type: ExternalIntegration['type'], apiKeyId: string): ExternalIntegration {
+      requireRole('admin');
+      const integration = webhookSrv.createIntegration(name, type, apiKeyId);
+      recordAudit('integration:create', 'integration', integration.id, `Created integration: ${name} (${type})`);
+      return integration;
+    },
+    deleteIntegration(id: string): void {
+      requireRole('admin');
+      webhookSrv.deleteIntegration(id);
+      recordAudit('integration:delete', 'integration', id, 'Deleted integration');
     }
   };
 

@@ -7,6 +7,7 @@ import { AgentsView } from './components/AgentsView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { CostUsageView } from './components/CostUsageView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { IntegrationsView } from './components/IntegrationsView';
 import { MarketplaceView } from './components/MarketplaceView';
 import { MissionControl } from './components/MissionControl';
 import { SecurityView } from './components/SecurityView';
@@ -151,6 +152,7 @@ export function App(): JSX.Element {
               {activeTab === 'team' && <TeamView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'security' && <SecurityView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
+              {activeTab === 'integrations' && <IntegrationsView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'settings' && <SettingsView snapshot={snapshot} onRefresh={refresh} themeMode={themeMode} onThemeChange={setThemeMode} />}
             </ErrorBoundary>
           </div>
