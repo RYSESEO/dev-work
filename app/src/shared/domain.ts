@@ -194,9 +194,12 @@ export interface User {
   email: string;
   role: UserRole;
   avatar: string | null;
+  passwordHash: string | null;
   createdAt: string;
   lastActiveAt: string;
 }
+
+export type SafeUser = Omit<User, 'passwordHash'>;
 
 export interface AuditLogEntry {
   id: string;
@@ -283,10 +286,10 @@ export interface DashboardSnapshot {
   artifacts: Artifact[];
   marketplace: MarketplaceEntry[];
   plugins: PluginDefinition[];
-  users: User[];
+  users: SafeUser[];
   workflows: WorkflowTemplate[];
   workflowRuns: WorkflowRun[];
-  currentUser: User | null;
+  currentUser: SafeUser | null;
   analytics: AnalyticsSnapshot | null;
   sandboxConfig: SandboxConfig;
   storeVersion?: number;

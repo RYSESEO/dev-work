@@ -1,13 +1,17 @@
 import { app, ipcMain } from 'electron';
 import path from 'node:path';
 import { createAppStore } from './db/appStore.js';
+import { createAuthService } from './services/auth.js';
 import { createOrchestrator, type Orchestrator } from './services/orchestrator.js';
 import type { Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate } from '../shared/domain.js';
 
 let orchestratorPromise: Promise<Orchestrator> | null = null;
 
 function getOrchestrator(): Promise<Orchestrator> {
-  orchestratorPromise ??= createAppStore(path.join(app.getPath('userData'), 'command-center.sqlite')).then(createOrchestrator);
+  orchestratorPromise ??= createAppStore(path.join(app.getPath('userData'), 'command-center.sqlite')).then((store) => {
+    const auth = createAuthService(store);
+    return createOrchestrator(store, auth);
+  });
   return orchestratorPromise;
 }
 
@@ -19,6 +23,23 @@ export function registerIpcHandlers(): void {
     }
     return orch.getSnapshot();
   });
+
+  // Auth
+  ipcMain.handle('auth:login', async (_event, email: string, password: string) =>
+    (await getOrchestrator()).login(email, password)
+  );
+  ipcMain.handle('auth:logout', async () =>
+    (await getOrchestrator()).logout()
+  );
+  ipcMain.handle('auth:currentUser', async () =>
+    (await getOrchestrator()).getCurrentUser()
+  );
+  ipcMain.handle('auth:requiresSetup', async () =>
+    (await getOrchestrator()).requiresSetup()
+  );
+  ipcMain.handle('auth:setupAdmin', async (_event, name: string, email: string, password: string) =>
+    (await getOrchestrator()).setupAdmin(name, email, password)
+  );
 
   // Missions
   ipcMain.handle('mission:create', async (_event, title: string, goal: string) =>
@@ -85,14 +106,17 @@ export function registerIpcHandlers(): void {
   );
 
   // Users
-  ipcMain.handle('user:create', async (_event, name: string, email: string, role: User['role']) =>
-    (await getOrchestrator()).createUser(name, email, role)
+  ipcMain.handle('user:create', async (_event, name: string, email: string, role: User['role'], password?: string) =>
+    (await getOrchestrator()).createUser(name, email, role, password)
   );
   ipcMain.handle('user:updateRole', async (_event, userId: string, role: User['role']) =>
     (await getOrchestrator()).updateUserRole(userId, role)
   );
   ipcMain.handle('user:delete', async (_event, userId: string) =>
     (await getOrchestrator()).deleteUser(userId)
+  );
+  ipcMain.handle('user:setPassword', async (_event, userId: string, password: string) =>
+    (await getOrchestrator()).setUserPassword(userId, password)
   );
 
   // Workflows
@@ -117,5 +141,15 @@ export function registerIpcHandlers(): void {
   // Analytics
   ipcMain.handle('analytics:get', async () =>
     (await getOrchestrator()).getAnalytics()
+  );
+
+  // Audit log
+  ipcMain.handle('audit:get', async () =>
+    (await getOrchestrator()).getAuditLog()
+  );
+
+  // Data export
+  ipcMain.handle('data:export', async (_event, format: 'json' | 'csv') =>
+    (await getOrchestrator()).exportData(format)
   );
 }

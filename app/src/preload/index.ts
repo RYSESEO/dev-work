@@ -1,10 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AnalyticsSnapshot,
+  AuditLogEntry,
   DashboardSnapshot,
   Mission,
   Run,
   RunnerProfile,
+  SafeUser,
   SandboxConfig,
   Task,
   User,
@@ -16,6 +18,14 @@ import type {
 const commandCenter = {
   getSnapshot: (knownVersion?: number): Promise<DashboardSnapshot | null> =>
     ipcRenderer.invoke('dashboard:getSnapshot', knownVersion),
+
+  // Auth
+  login: (email: string, password: string): Promise<SafeUser> => ipcRenderer.invoke('auth:login', email, password),
+  logout: (): Promise<void> => ipcRenderer.invoke('auth:logout'),
+  getCurrentUser: (): Promise<SafeUser | null> => ipcRenderer.invoke('auth:currentUser'),
+  requiresSetup: (): Promise<boolean> => ipcRenderer.invoke('auth:requiresSetup'),
+  setupAdmin: (name: string, email: string, password: string): Promise<SafeUser> =>
+    ipcRenderer.invoke('auth:setupAdmin', name, email, password),
 
   // Missions
   createMission: (title: string, goal: string): Promise<Mission> => ipcRenderer.invoke('mission:create', title, goal),
@@ -58,11 +68,13 @@ const commandCenter = {
     ipcRenderer.invoke('runner:update', id, fields),
 
   // Users
-  createUser: (name: string, email: string, role: User['role']): Promise<User> =>
-    ipcRenderer.invoke('user:create', name, email, role),
+  createUser: (name: string, email: string, role: User['role'], password?: string): Promise<SafeUser> =>
+    ipcRenderer.invoke('user:create', name, email, role, password),
   updateUserRole: (userId: string, role: User['role']): Promise<void> =>
     ipcRenderer.invoke('user:updateRole', userId, role),
   deleteUser: (userId: string): Promise<void> => ipcRenderer.invoke('user:delete', userId),
+  setUserPassword: (userId: string, password: string): Promise<void> =>
+    ipcRenderer.invoke('user:setPassword', userId, password),
 
   // Workflows
   createWorkflow: (name: string, description: string, steps: WorkflowStep[]): Promise<WorkflowTemplate> =>
@@ -78,7 +90,13 @@ const commandCenter = {
     ipcRenderer.invoke('sandbox:update', config),
 
   // Analytics
-  getAnalytics: (): Promise<AnalyticsSnapshot> => ipcRenderer.invoke('analytics:get')
+  getAnalytics: (): Promise<AnalyticsSnapshot> => ipcRenderer.invoke('analytics:get'),
+
+  // Audit log
+  getAuditLog: (): Promise<AuditLogEntry[]> => ipcRenderer.invoke('audit:get'),
+
+  // Data export
+  exportData: (format: 'json' | 'csv'): Promise<string> => ipcRenderer.invoke('data:export', format)
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);
