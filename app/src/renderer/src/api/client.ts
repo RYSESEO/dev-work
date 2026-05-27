@@ -3,6 +3,14 @@ import type { Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, W
 export const commandCenterClient = {
   getSnapshot: (knownVersion?: number) => window.commandCenter.getSnapshot(knownVersion),
 
+  // Auth
+  login: (email: string, password: string) => window.commandCenter.login(email, password),
+  logout: () => window.commandCenter.logout(),
+  getCurrentUser: () => window.commandCenter.getCurrentUser(),
+  requiresSetup: () => window.commandCenter.requiresSetup(),
+  setupAdmin: (name: string, email: string, password: string) =>
+    window.commandCenter.setupAdmin(name, email, password),
+
   // Missions
   createMission: (title: string, goal: string) => window.commandCenter.createMission(title, goal),
   updateMission: (id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>) =>
@@ -39,9 +47,11 @@ export const commandCenterClient = {
     window.commandCenter.updateRunnerProfile(id, fields),
 
   // Users
-  createUser: (name: string, email: string, role: User['role']) => window.commandCenter.createUser(name, email, role),
+  createUser: (name: string, email: string, role: User['role'], password?: string) =>
+    window.commandCenter.createUser(name, email, role, password),
   updateUserRole: (userId: string, role: User['role']) => window.commandCenter.updateUserRole(userId, role),
   deleteUser: (userId: string) => window.commandCenter.deleteUser(userId),
+  setUserPassword: (userId: string, password: string) => window.commandCenter.setUserPassword(userId, password),
 
   // Workflows
   createWorkflow: (name: string, description: string, steps: WorkflowStep[]) =>
@@ -56,5 +66,11 @@ export const commandCenterClient = {
   updateSandboxConfig: (config: Partial<SandboxConfig>) => window.commandCenter.updateSandboxConfig(config),
 
   // Analytics
-  getAnalytics: () => window.commandCenter.getAnalytics()
+  getAnalytics: () => window.commandCenter.getAnalytics(),
+
+  // Audit log
+  getAuditLog: () => window.commandCenter.getAuditLog(),
+
+  // Data export
+  exportData: (format: 'json' | 'csv') => window.commandCenter.exportData(format)
 };

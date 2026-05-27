@@ -7,12 +7,14 @@ import { OpenAIRunner } from '../runners/openaiRunner.js';
 import type { Runner, RunnerHandle } from '../runners/types.js';
 import type { RunnerToHostMessage } from '../../shared/runnerProtocol.js';
 import { findMatchingGrant } from './approvalPolicy.js';
+import { type AuthService, hashPassword, stripPasswordHash } from './auth.js';
 import {
   createId,
   isTerminalRunStatus,
   nowIso,
   type AgentProfile,
   type AnalyticsSnapshot,
+  type AuditLogEntry,
   type Artifact,
   type ApprovalGrant,
   type ApprovalRequest,
@@ -22,6 +24,7 @@ import {
   type PluginDefinition,
   type Run,
   type RunnerProfile,
+  type SafeUser,
   type SandboxConfig,
   type SignificantEvent,
   type Task,
@@ -36,38 +39,97 @@ import {
 export interface Orchestrator {
   getSnapshot(): DashboardSnapshot;
   getStoreVersion(): number;
+  // Auth
+  login(email: string, password: string): SafeUser;
+  logout(): void;
+  getCurrentUser(): SafeUser | null;
+  setupAdmin(name: string, email: string, password: string): SafeUser;
+  requiresSetup(): boolean;
+  // Missions
   createMission(title: string, goal: string): Mission;
   updateMission(id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>): Mission;
   deleteMission(id: string): void;
+  // Tasks
   createTask(missionId: string | null, title: string, description: string, priority?: Task['priority']): Task;
   updateTask(id: string, fields: Partial<Pick<Task, 'title' | 'description' | 'priority' | 'status'>>): Task;
   deleteTask(id: string): void;
+  // Runs
   launchRun(taskId: string, agentProfileId: string, prompt: string): Promise<Run>;
   stopRun(runId: string): void;
+  // Approvals
   approveRequest(approvalRequestId: string): void;
   rejectRequest(approvalRequestId: string, reason: string): void;
   waitForRunEvent(runId: string, eventType: string, timeoutMs: number): Promise<void>;
+  // Marketplace
   installMarketplaceEntry(entryId: string): void;
   uninstallMarketplaceEntry(entryId: string): void;
   togglePlugin(pluginId: string, enabled: boolean): void;
+  // Runner profiles
   addRunnerProfile(profile: RunnerProfile): void;
   removeRunnerProfile(profileId: string): void;
   updateRunnerProfile(id: string, fields: Partial<Omit<RunnerProfile, 'id'>>): RunnerProfile;
-  createUser(name: string, email: string, role: User['role']): User;
+  // Users
+  createUser(name: string, email: string, role: User['role'], password?: string): SafeUser;
   updateUserRole(userId: string, role: User['role']): void;
   deleteUser(userId: string): void;
+  setUserPassword(userId: string, password: string): void;
+  // Workflows
   createWorkflow(name: string, description: string, steps: WorkflowStep[]): WorkflowTemplate;
   updateWorkflow(id: string, fields: Partial<Pick<WorkflowTemplate, 'name' | 'description' | 'steps'>>): WorkflowTemplate;
   deleteWorkflow(id: string): void;
   launchWorkflow(workflowId: string, missionId: string | null): Promise<WorkflowRun>;
+  // Config
   updateSandboxConfig(config: Partial<SandboxConfig>): SandboxConfig;
   getAnalytics(): AnalyticsSnapshot;
+  // Audit
+  getAuditLog(): AuditLogEntry[];
+  // Export
+  exportData(format: 'json' | 'csv'): string;
 }
 
-export async function createOrchestrator(store: AppStore): Promise<Orchestrator> {
+const noopAuth: AuthService = {
+  login(): SafeUser { throw new Error('Auth not configured.'); },
+  logout() {},
+  getCurrentUser() { return null; },
+  setPassword() { throw new Error('Auth not configured.'); },
+  requiresSetup() { return true; }
+};
+
+export async function createOrchestrator(store: AppStore, auth: AuthService = noopAuth): Promise<Orchestrator> {
   const log = logger.child('orchestrator');
   seedDefaults(store);
   log.info('Orchestrator initialized');
+
+  function recordAudit(action: string, targetType: string, targetId: string, details: string): void {
+    const currentUser = auth.getCurrentUser();
+    const entry: AuditLogEntry = {
+      id: createId('event'),
+      userId: currentUser?.id ?? 'system',
+      action,
+      targetType,
+      targetId,
+      details,
+      at: nowIso()
+    };
+    store.put('auditLog', entry.id, entry);
+  }
+
+  function requireAuth(): SafeUser | null {
+    if (auth.requiresSetup()) return null;
+    const user = auth.getCurrentUser();
+    if (!user) throw new Error('Authentication required.');
+    return user;
+  }
+
+  function requireRole(...roles: User['role'][]): SafeUser | null {
+    if (auth.requiresSetup()) return null;
+    const user = requireAuth();
+    if (!user) throw new Error('Authentication required.');
+    if (!roles.includes(user.role)) {
+      throw new Error(`Insufficient permissions. Requires: ${roles.join(' or ')}`);
+    }
+    return user;
+  }
   const runners: Record<string, Runner> = {
     command: new CommandRunner(),
     openai: new OpenAIRunner()
@@ -245,10 +307,10 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         artifacts: store.getAll<Artifact>('artifacts'),
         marketplace: store.getAll<MarketplaceEntry>('marketplace'),
         plugins: store.getAll<PluginDefinition>('plugins'),
-        users: store.getAll<User>('users'),
+        users: store.getAll<User>('users').map(stripPasswordHash),
         workflows: store.getAll<WorkflowTemplate>('workflows'),
         workflowRuns: store.getAll<WorkflowRun>('workflowRuns'),
-        currentUser: store.getAll<User>('users')[0] ?? null,
+        currentUser: auth.getCurrentUser() ?? (auth.requiresSetup() ? store.getAll<User>('users').map(stripPasswordHash)[0] ?? null : null),
         analytics: null,
         sandboxConfig: getSandboxConfig(),
         storeVersion: store.getVersion()
@@ -257,9 +319,40 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
     getStoreVersion(): number {
       return store.getVersion();
     },
+    login(email: string, password: string): SafeUser {
+      return auth.login(email, password);
+    },
+    logout(): void {
+      auth.logout();
+    },
+    getCurrentUser(): SafeUser | null {
+      return auth.getCurrentUser();
+    },
+    setupAdmin(name: string, email: string, password: string): SafeUser {
+      if (!auth.requiresSetup()) throw new Error('Admin already configured.');
+      const at = nowIso();
+      const user: User = {
+        id: createId('user'),
+        name: name.trim(),
+        email: email.trim(),
+        role: 'admin',
+        avatar: null,
+        passwordHash: hashPassword(password),
+        createdAt: at,
+        lastActiveAt: at
+      };
+      store.put('users', user.id, user);
+      const safeUser = auth.login(email, password);
+      recordAudit('setup_admin', 'user', user.id, `Admin ${name} created during initial setup`);
+      return safeUser;
+    },
+    requiresSetup(): boolean {
+      return auth.requiresSetup();
+    },
     createMission(title: string, goal: string): Mission {
       if (!title.trim()) throw new Error('Mission title is required.');
       if (!goal.trim()) throw new Error('Mission goal is required.');
+      requireRole('admin', 'operator');
       log.info('Creating mission', { title });
       const at = nowIso();
       const mission: Mission = {
@@ -271,24 +364,30 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         updatedAt: at
       };
       store.put('missions', mission.id, mission);
+      recordAudit('create', 'mission', mission.id, title);
       return mission;
     },
     updateMission(id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>): Mission {
+      requireRole('admin', 'operator');
       const mission = store.getById<Mission>('missions', id);
       if (!mission) throw new Error(`Mission not found: ${id}`);
       const updated = { ...mission, ...fields, updatedAt: nowIso() };
       store.put('missions', id, updated);
       log.info('Mission updated', { id, fields });
+      recordAudit('update', 'mission', id, JSON.stringify(fields));
       return updated;
     },
     deleteMission(id: string): void {
+      requireRole('admin');
       const mission = store.getById<Mission>('missions', id);
       if (!mission) throw new Error(`Mission not found: ${id}`);
       store.remove('missions', id);
       log.info('Mission deleted', { id });
+      recordAudit('delete', 'mission', id, mission.title);
     },
     createTask(missionId: string | null, title: string, description: string, priority: Task['priority'] = 'normal'): Task {
       if (!title.trim()) throw new Error('Task title is required.');
+      requireRole('admin', 'operator');
       const at = nowIso();
       const task: Task = {
         id: createId('task'),
@@ -302,23 +401,29 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         updatedAt: at
       };
       store.put('tasks', task.id, task);
+      recordAudit('create', 'task', task.id, title);
       return task;
     },
     updateTask(id: string, fields: Partial<Pick<Task, 'title' | 'description' | 'priority' | 'status'>>): Task {
+      requireRole('admin', 'operator');
       const task = store.getById<Task>('tasks', id);
       if (!task) throw new Error(`Task not found: ${id}`);
       const updated = { ...task, ...fields, updatedAt: nowIso() };
       store.put('tasks', id, updated);
       log.info('Task updated', { id, fields });
+      recordAudit('update', 'task', id, JSON.stringify(fields));
       return updated;
     },
     deleteTask(id: string): void {
+      requireRole('admin');
       const task = store.getById<Task>('tasks', id);
       if (!task) throw new Error(`Task not found: ${id}`);
       store.remove('tasks', id);
       log.info('Task deleted', { id });
+      recordAudit('delete', 'task', id, task.title);
     },
     async launchRun(taskId: string, agentProfileId: string, prompt: string): Promise<Run> {
+      requireRole('admin', 'operator');
       log.info('Launching run', { taskId, agentProfileId });
       const task = store.getById<Task>('tasks', taskId);
       const agent = store.getById<AgentProfile>('agents', agentProfileId);
@@ -371,6 +476,7 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       return run;
     },
     stopRun(runId: string): void {
+      requireRole('admin', 'operator');
       const run = store.getById<Run>('runs', runId);
       if (!run) throw new Error(`Run not found: ${runId}`);
       if (isTerminalRunStatus(run.status)) throw new Error(`Run already in terminal state: ${run.status}`);
@@ -382,6 +488,7 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       log.info('Run stopped by user', { runId });
     },
     approveRequest(approvalRequestId: string): void {
+      requireRole('admin', 'operator');
       const approval = store.getById<ApprovalRequest>('approvals', approvalRequestId);
       if (!approval) throw new Error(`Approval not found: ${approvalRequestId}`);
 
@@ -403,6 +510,7 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       addEvent(approval.runId, run?.taskId ?? null, 'Approval granted', approval.title, 'success');
     },
     rejectRequest(approvalRequestId: string, reason: string): void {
+      requireRole('admin', 'operator');
       const approval = store.getById<ApprovalRequest>('approvals', approvalRequestId);
       if (!approval) throw new Error(`Approval not found: ${approvalRequestId}`);
 
@@ -429,27 +537,35 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       });
     },
     installMarketplaceEntry(entryId: string): void {
+      requireRole('admin');
       const entry = store.getById<MarketplaceEntry>('marketplace', entryId);
       if (!entry) throw new Error(`Marketplace entry not found: ${entryId}`);
       store.put('marketplace', entry.id, { ...entry, installed: true, updatedAt: nowIso() });
     },
     uninstallMarketplaceEntry(entryId: string): void {
+      requireRole('admin');
       const entry = store.getById<MarketplaceEntry>('marketplace', entryId);
       if (!entry) throw new Error(`Marketplace entry not found: ${entryId}`);
       store.put('marketplace', entry.id, { ...entry, installed: false, updatedAt: nowIso() });
     },
     togglePlugin(pluginId: string, enabled: boolean): void {
+      requireRole('admin');
       const plugin = store.getById<PluginDefinition>('plugins', pluginId);
       if (!plugin) throw new Error(`Plugin not found: ${pluginId}`);
       store.put('plugins', plugin.id, { ...plugin, enabled });
     },
     addRunnerProfile(profile: RunnerProfile): void {
+      requireRole('admin');
       store.put('runnerProfiles', profile.id, profile);
+      recordAudit('create', 'runnerProfile', profile.id, profile.name);
     },
     removeRunnerProfile(profileId: string): void {
+      requireRole('admin');
       store.remove('runnerProfiles', profileId);
+      recordAudit('delete', 'runnerProfile', profileId, '');
     },
     updateRunnerProfile(id: string, fields: Partial<Omit<RunnerProfile, 'id'>>): RunnerProfile {
+      requireRole('admin');
       const profile = store.getById<RunnerProfile>('runnerProfiles', id);
       if (!profile) throw new Error(`Runner profile not found: ${id}`);
       const updated = { ...profile, ...fields } as RunnerProfile;
@@ -457,9 +573,12 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       log.info('Runner profile updated', { id });
       return updated;
     },
-    createUser(name: string, email: string, role: User['role']): User {
+    createUser(name: string, email: string, role: User['role'], password?: string): SafeUser {
+      requireRole('admin');
       if (!name.trim()) throw new Error('User name is required.');
       if (!email.trim()) throw new Error('User email is required.');
+      const existing = store.getAll<User>('users').find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (existing) throw new Error('A user with that email already exists.');
       const at = nowIso();
       const user: User = {
         id: createId('user'),
@@ -467,24 +586,38 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         email: email.trim(),
         role,
         avatar: null,
+        passwordHash: password ? hashPassword(password) : null,
         createdAt: at,
         lastActiveAt: at
       };
       store.put('users', user.id, user);
-      return user;
+      log.info('User created', { userId: user.id, email: user.email, role });
+      recordAudit('create', 'user', user.id, `${name} (${role})`);
+      return stripPasswordHash(user);
     },
     updateUserRole(userId: string, role: User['role']): void {
+      requireRole('admin');
       const user = store.getById<User>('users', userId);
       if (!user) throw new Error(`User not found: ${userId}`);
       store.put('users', user.id, { ...user, role });
+      log.info('User role updated', { userId, role });
+      recordAudit('update', 'user', userId, `Role changed to ${role}`);
     },
     deleteUser(userId: string): void {
+      requireRole('admin');
       const user = store.getById<User>('users', userId);
       if (!user) throw new Error(`User not found: ${userId}`);
       store.remove('users', userId);
       log.info('User deleted', { userId });
+      recordAudit('delete', 'user', userId, user.name);
+    },
+    setUserPassword(userId: string, password: string): void {
+      requireRole('admin');
+      auth.setPassword(userId, password);
+      recordAudit('update', 'user', userId, 'Password changed');
     },
     createWorkflow(name: string, description: string, steps: WorkflowStep[]): WorkflowTemplate {
+      requireRole('admin', 'operator');
       if (!name.trim()) throw new Error('Workflow name is required.');
       const at = nowIso();
       const workflow: WorkflowTemplate = {
@@ -496,23 +629,29 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
         updatedAt: at
       };
       store.put('workflows', workflow.id, workflow);
+      recordAudit('create', 'workflow', workflow.id, name);
       return workflow;
     },
     updateWorkflow(id: string, fields: Partial<Pick<WorkflowTemplate, 'name' | 'description' | 'steps'>>): WorkflowTemplate {
+      requireRole('admin', 'operator');
       const workflow = store.getById<WorkflowTemplate>('workflows', id);
       if (!workflow) throw new Error(`Workflow not found: ${id}`);
       const updated = { ...workflow, ...fields, updatedAt: nowIso() };
       store.put('workflows', id, updated);
       log.info('Workflow updated', { id });
+      recordAudit('update', 'workflow', id, JSON.stringify(fields));
       return updated;
     },
     deleteWorkflow(id: string): void {
+      requireRole('admin');
       const workflow = store.getById<WorkflowTemplate>('workflows', id);
       if (!workflow) throw new Error(`Workflow not found: ${id}`);
       store.remove('workflows', id);
       log.info('Workflow deleted', { id });
+      recordAudit('delete', 'workflow', id, workflow.name);
     },
     async launchWorkflow(workflowId: string, missionId: string | null): Promise<WorkflowRun> {
+      requireRole('admin', 'operator');
       const workflow = store.getById<WorkflowTemplate>('workflows', workflowId);
       if (!workflow) throw new Error(`Workflow not found: ${workflowId}`);
 
@@ -539,16 +678,61 @@ export async function createOrchestrator(store: AppStore): Promise<Orchestrator>
       addEvent(null, null, 'Workflow started', `Workflow "${workflow.name}" started with ${workflow.steps.length} steps.`);
 
       void executeWorkflowSteps(workflowRun, workflow);
+      recordAudit('launch', 'workflow', workflowRun.id, workflow.name);
       return workflowRun;
     },
     updateSandboxConfig(config: Partial<SandboxConfig>): SandboxConfig {
+      requireRole('admin');
       const current = getSandboxConfig();
       const updated: SandboxConfig = { ...current, ...config };
       store.put('sandboxConfig', 'default', { id: 'default', ...updated });
+      recordAudit('update', 'sandboxConfig', 'default', JSON.stringify(config));
       return updated;
     },
     getAnalytics(): AnalyticsSnapshot {
       return computeAnalytics();
+    },
+    getAuditLog(): AuditLogEntry[] {
+      requireRole('admin');
+      return store.getAll<AuditLogEntry>('auditLog');
+    },
+    exportData(format: 'json' | 'csv'): string {
+      requireRole('admin');
+      const missions = store.getAll<Mission>('missions');
+      const tasks = store.getAll<Task>('tasks');
+      const runs = store.getAll<Run>('runs');
+      const analytics = computeAnalytics();
+
+      if (format === 'json') {
+        return JSON.stringify({ missions, tasks, runs, analytics }, null, 2);
+      }
+
+      const lines: string[] = [];
+      lines.push('--- Missions ---');
+      lines.push('id,title,goal,status,createdAt,updatedAt');
+      for (const m of missions) {
+        lines.push(`${m.id},"${m.title}","${m.goal}",${m.status},${m.createdAt},${m.updatedAt}`);
+      }
+      lines.push('');
+      lines.push('--- Tasks ---');
+      lines.push('id,missionId,title,status,priority,createdAt,updatedAt');
+      for (const t of tasks) {
+        lines.push(`${t.id},${t.missionId ?? ''},"${t.title}",${t.status},${t.priority},${t.createdAt},${t.updatedAt}`);
+      }
+      lines.push('');
+      lines.push('--- Runs ---');
+      lines.push('id,taskId,agentProfileId,status,startedAt,completedAt,estimatedCostUsd,estimatedTokens');
+      for (const r of runs) {
+        lines.push(`${r.id},${r.taskId},${r.agentProfileId},${r.status},${r.startedAt},${r.completedAt ?? ''},${r.estimatedCostUsd},${r.estimatedTokens}`);
+      }
+      lines.push('');
+      lines.push('--- Analytics ---');
+      lines.push(`totalRuns,${analytics.totalRuns}`);
+      const rate = analytics.totalRuns > 0 ? ((analytics.successfulRuns / analytics.totalRuns) * 100).toFixed(1) : '0';
+      lines.push(`successRate,${rate}%`);
+      lines.push(`totalCostUsd,${analytics.totalCostUsd}`);
+      lines.push(`totalTokens,${analytics.totalTokens}`);
+      return lines.join('\n');
     }
   };
 
@@ -876,6 +1060,7 @@ function seedDefaults(store: AppStore): void {
       email: 'admin@localhost',
       role: 'admin',
       avatar: null,
+      passwordHash: null,
       createdAt: nowIso(),
       lastActiveAt: nowIso()
     };
