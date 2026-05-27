@@ -1,7 +1,12 @@
-import { Bot } from 'lucide-react';
+import { Bot, FileText } from 'lucide-react';
+import { useState, type JSX } from 'react';
 import type { DashboardSnapshot } from '../../../shared/domain';
+import { RunLogViewer } from './RunLogViewer';
 
-export function AgentsView({ snapshot }: { snapshot: DashboardSnapshot }) {
+export function AgentsView({ snapshot }: { snapshot: DashboardSnapshot }): JSX.Element {
+  const [viewingLogRunId, setViewingLogRunId] = useState<string | null>(null);
+  const viewingRun = viewingLogRunId ? snapshot.runs.find((r) => r.id === viewingLogRunId) : null;
+
   const runsByAgent = new Map<string, typeof snapshot.runs[number]>();
   for (const run of snapshot.runs) {
     const existing = runsByAgent.get(run.agentProfileId);
@@ -37,6 +42,7 @@ export function AgentsView({ snapshot }: { snapshot: DashboardSnapshot }) {
               <th>Current run</th>
               <th>Success</th>
               <th>Failed</th>
+              <th>Log</th>
             </tr>
           </thead>
           <tbody>
@@ -50,6 +56,18 @@ export function AgentsView({ snapshot }: { snapshot: DashboardSnapshot }) {
                   <td>{run ? `${run.id} | ${run.status}` : 'Idle'}</td>
                   <td>{agent.successCount}</td>
                   <td>{agent.failureCount}</td>
+                  <td>
+                    {run && (
+                      <button
+                        className="secondary-button"
+                        style={{ padding: '0.2rem 0.4rem' }}
+                        onClick={() => setViewingLogRunId(run.id)}
+                        title="View run log"
+                      >
+                        <FileText size={14} />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -57,6 +75,14 @@ export function AgentsView({ snapshot }: { snapshot: DashboardSnapshot }) {
         </table>
         </div>
       </section>
+
+      {viewingLogRunId && viewingRun && (
+        <RunLogViewer
+          runId={viewingLogRunId}
+          runStatus={viewingRun.status}
+          onClose={() => setViewingLogRunId(null)}
+        />
+      )}
     </main>
   );
 }

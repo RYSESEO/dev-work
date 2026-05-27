@@ -28,6 +28,7 @@ export const commandCenterClient = {
   launchRun: (taskId: string, agentProfileId: string, prompt: string) =>
     window.commandCenter.launchRun(taskId, agentProfileId, prompt),
   stopRun: (runId: string) => window.commandCenter.stopRun(runId),
+  getRunLog: (runId: string) => window.commandCenter.getRunLog(runId),
 
   // Approvals
   approveRequest: (approvalRequestId: string) => window.commandCenter.approveRequest(approvalRequestId),
@@ -77,5 +78,14 @@ export const commandCenterClient = {
   // License
   activateLicense: (key: string, email: string) => window.commandCenter.activateLicense(key, email),
   deactivateLicense: () => window.commandCenter.deactivateLicense(),
-  getLicenseStatus: () => window.commandCenter.getLicenseStatus()
+  getLicenseStatus: () => window.commandCenter.getLicenseStatus(),
+
+  // Notifications
+  getNotificationPrefs: () => window.commandCenter.getNotificationPrefs(),
+  setNotificationPrefs: (prefs: Partial<{
+    enabled: boolean;
+    onApprovalRequest: boolean;
+    onRunComplete: boolean;
+    onRunFailed: boolean;
+  }>) => window.commandCenter.setNotificationPrefs(prefs)
 };

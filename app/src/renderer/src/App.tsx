@@ -19,6 +19,15 @@ import { WelcomeModal } from './components/WelcomeModal';
 import { WorkflowsView } from './components/WorkflowsView';
 
 const ONBOARDING_KEY = 'command-center:onboarding-complete';
+const THEME_KEY = 'command-center:theme';
+
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+function applyTheme(mode: ThemeMode): void {
+  const prefersDark = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+}
 
 export function App(): JSX.Element {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -27,7 +36,21 @@ export function App(): JSX.Element {
   const [showOnboarding, setShowOnboarding] = useState(
     () => !localStorage.getItem(ONBOARDING_KEY)
   );
+  const [themeMode, setThemeMode] = useState<ThemeMode>(
+    () => (localStorage.getItem(THEME_KEY) as ThemeMode) || 'system'
+  );
   const knownVersionRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    applyTheme(themeMode);
+    localStorage.setItem(THEME_KEY, themeMode);
+    if (themeMode === 'system' && typeof window.matchMedia === 'function') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = (): void => applyTheme('system');
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+  }, [themeMode]);
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
@@ -114,9 +137,10 @@ export function App(): JSX.Element {
     <ToastProvider>
       <ErrorBoundary fallbackLabel="Application error">
         {showOnboarding && <WelcomeModal onComplete={completeOnboarding} />}
+        <a href="#main-content" className="skip-nav">Skip to main content</a>
         <div className="product-frame">
           <TabNav active={activeTab} onChange={setActiveTab} />
-          <div className="sidebar-content">
+          <div className="sidebar-content" id="main-content" role="main">
             <ErrorBoundary fallbackLabel={`Error in ${activeTab} tab`}>
               {activeTab === 'mission' && <MissionControl snapshot={snapshot} onRefresh={refresh} onNavigate={setActiveTab} />}
               {activeTab === 'agents' && <AgentsView snapshot={snapshot} />}
@@ -127,7 +151,7 @@ export function App(): JSX.Element {
               {activeTab === 'team' && <TeamView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'security' && <SecurityView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
-              {activeTab === 'settings' && <SettingsView snapshot={snapshot} onRefresh={refresh} />}
+              {activeTab === 'settings' && <SettingsView snapshot={snapshot} onRefresh={refresh} themeMode={themeMode} onThemeChange={setThemeMode} />}
             </ErrorBoundary>
           </div>
         </div>

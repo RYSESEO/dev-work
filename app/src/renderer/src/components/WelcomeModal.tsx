@@ -1,5 +1,6 @@
 import { Activity, Bot, Rocket } from 'lucide-react';
 import { useState, type JSX } from 'react';
+import { FocusTrap } from './FocusTrap';
 
 interface Props {
   onComplete(): void;
@@ -38,25 +39,27 @@ export function WelcomeModal({ onComplete }: Props): JSX.Element {
   const Icon = current.icon;
 
   return (
-    <div className="onboarding-overlay">
-      <div className="onboarding-modal" role="dialog" aria-label="Welcome to Command Center">
-        <Icon size={36} color="var(--accent)" />
-        <h2>{current.title}</h2>
-        <p>{current.body}</p>
-        <div className="onboarding-steps">
-          {steps.map((_, i) => (
-            <span key={i} className={`onboarding-dot ${i === step ? 'active' : ''}`} />
-          ))}
+    <div className="onboarding-overlay" role="presentation">
+      <FocusTrap>
+        <div className="onboarding-modal" role="dialog" aria-labelledby="onboarding-title" aria-describedby="onboarding-body" aria-label="Welcome to Command Center">
+          <Icon size={36} color="var(--accent)" aria-hidden="true" />
+          <h2 id="onboarding-title">{current.title}</h2>
+          <p id="onboarding-body">{current.body}</p>
+          <div className="onboarding-steps" aria-label={`Step ${step + 1} of ${steps.length}`}>
+            {steps.map((_, i) => (
+              <span key={i} className={`onboarding-dot ${i === step ? 'active' : ''}`} aria-hidden="true" />
+            ))}
+          </div>
+          <div className="onboarding-actions">
+            {step > 0 && (
+              <button className="secondary-button" onClick={() => setStep(step - 1)}>Back</button>
+            )}
+            <button className="primary-button" onClick={handleNext}>
+              {step < steps.length - 1 ? 'Next' : 'Get started'}
+            </button>
+          </div>
         </div>
-        <div className="onboarding-actions">
-          {step > 0 && (
-            <button className="secondary-button" onClick={() => setStep(step - 1)}>Back</button>
-          )}
-          <button className="primary-button" onClick={handleNext}>
-            {step < steps.length - 1 ? 'Next' : 'Get started'}
-          </button>
-        </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }
