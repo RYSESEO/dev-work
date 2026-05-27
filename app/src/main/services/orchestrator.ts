@@ -4,6 +4,9 @@ import type { AppStore } from '../db/appStore.js';
 import { logger } from '../logger.js';
 import { CommandRunner } from '../runners/commandRunner.js';
 import { OpenAIRunner } from '../runners/openaiRunner.js';
+import { AnthropicRunner } from '../runners/anthropicRunner.js';
+import { OllamaRunner } from '../runners/ollamaRunner.js';
+import { CustomHttpRunner } from '../runners/customHttpRunner.js';
 import type { Runner, RunnerHandle } from '../runners/types.js';
 import type { RunnerToHostMessage } from '../../shared/runnerProtocol.js';
 import { notifyApprovalRequest, notifyRunComplete, notifyRunFailed } from '../notifications.js';
@@ -12,6 +15,8 @@ import { type AuthService, hashPassword, stripPasswordHash } from './auth.js';
 import { createLicenseService } from './license.js';
 import { createMarketplaceService } from './marketplace.js';
 import { createPluginRuntime } from './pluginRuntime.js';
+import { createTelemetryService, type TelemetryEvent, type TelemetryPreferences, type TelemetryService } from './telemetry.js';
+import { createBackupService, type BackupMetadata, type BackupService } from './backup.js';
 import {
   createId,
   isTerminalRunStatus,
@@ -95,6 +100,16 @@ export interface Orchestrator {
   activateLicense(key: string, email: string): LicenseStatus;
   deactivateLicense(): void;
   getLicenseStatus(): LicenseStatus;
+  // Telemetry
+  getTelemetryPrefs(): TelemetryPreferences;
+  setTelemetryPrefs(update: Partial<TelemetryPreferences>): TelemetryPreferences;
+  getTelemetryEvents(limit?: number): TelemetryEvent[];
+  getTelemetrySummary(): { totalEvents: number; eventCounts: Record<string, number>; lastEvent: string | null };
+  // Backup & restore
+  createBackup(targetPath: string): Promise<BackupMetadata>;
+  restoreBackup(sourcePath: string): Promise<BackupMetadata>;
+  listBackups(directory: string): Promise<BackupMetadata[]>;
+  autoBackup(dataDir: string): Promise<string>;
 }
 
 const noopAuth: AuthService = {
@@ -111,6 +126,8 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
   const packagesDir = path.join(process.cwd(), 'packages');
   const marketplace = createMarketplaceService(store, packagesDir);
   const pluginRuntime = createPluginRuntime(store);
+  const telemetry: TelemetryService = createTelemetryService(store);
+  const backup: BackupService = createBackupService(store);
   seedDefaults(store);
   log.info('Orchestrator initialized');
 
@@ -160,7 +177,10 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
   }
   const runners: Record<string, Runner> = {
     command: new CommandRunner(),
-    openai: new OpenAIRunner()
+    openai: new OpenAIRunner(),
+    anthropic: new AnthropicRunner(),
+    ollama: new OllamaRunner(),
+    'custom-http': new CustomHttpRunner()
   };
   const handles = new Map<string, RunnerHandle>();
   const seenRunEvents = new Map<string, Set<string>>();
@@ -240,6 +260,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     void pluginRuntime.invokeHook('afterRunComplete', { runId: run.id, taskId: run.taskId });
     if (status === 'completed') notifyRunComplete(run.id);
     if (status === 'failed') notifyRunFailed(run.id, body);
+    telemetry.track('run_finished', { runId: run.id, status });
   }
 
   function handleRunnerMessage(runId: string, message: RunnerToHostMessage): void {
@@ -401,6 +422,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       store.put('missions', mission.id, mission);
       recordAudit('create', 'mission', mission.id, title);
       void pluginRuntime.invokeHook('onMissionCreated', { missionId: mission.id });
+      telemetry.track('mission_created', { missionId: mission.id });
       return mission;
     },
     updateMission(id: string, fields: Partial<Pick<Mission, 'title' | 'goal' | 'status'>>): Mission {
@@ -488,6 +510,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       store.put('agents', agent.id, { ...agent, status: 'running' });
       addEvent(run.id, task.id, 'Run started', `${agent.name} started ${task.title}.`);
       void pluginRuntime.invokeHook('beforeRunStart', { runId: run.id, taskId });
+      telemetry.track('run_started', { runId: run.id, taskId, agentId: agent.id, runnerType: profile.type });
 
       const selectedRunner = runners[profile.type];
       if (!selectedRunner) throw new Error(`No runner available for type: ${profile.type}`);
@@ -791,6 +814,34 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     },
     getLicenseStatus(): LicenseStatus {
       return getLicenseStatusObj();
+    },
+
+    // Telemetry
+    getTelemetryPrefs(): TelemetryPreferences {
+      return telemetry.getPreferences();
+    },
+    setTelemetryPrefs(update: Partial<TelemetryPreferences>): TelemetryPreferences {
+      return telemetry.setPreferences(update);
+    },
+    getTelemetryEvents(limit?: number): TelemetryEvent[] {
+      return telemetry.getEvents(limit);
+    },
+    getTelemetrySummary() {
+      return telemetry.getSummary();
+    },
+    async createBackup(targetPath: string): Promise<BackupMetadata> {
+      requireRole('admin');
+      return backup.createBackup(targetPath);
+    },
+    async restoreBackup(sourcePath: string): Promise<BackupMetadata> {
+      requireRole('admin');
+      return backup.restoreBackup(sourcePath);
+    },
+    async listBackups(directory: string): Promise<BackupMetadata[]> {
+      return backup.listBackups(directory);
+    },
+    async autoBackup(dataDir: string): Promise<string> {
+      return backup.autoBackup(dataDir);
     }
   };
 

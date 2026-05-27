@@ -11,7 +11,8 @@ export type IdPrefix =
   | 'plugin'
   | 'workflow'
   | 'user'
-  | 'license';
+  | 'license'
+  | 'telemetry';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -73,7 +74,41 @@ export interface OpenAIRunnerProfile {
   systemPrompt: string;
 }
 
-export type RunnerProfile = CommandRunnerProfile | OpenAIRunnerProfile;
+export interface AnthropicRunnerProfile {
+  id: string;
+  name: string;
+  type: 'anthropic';
+  model: string;
+  workspacePath: string;
+  env: Record<string, string>;
+  costPerThousandTokensUsd: number;
+  maxTokens: number;
+  systemPrompt: string;
+}
+
+export interface OllamaRunnerProfile {
+  id: string;
+  name: string;
+  type: 'ollama';
+  model: string;
+  workspacePath: string;
+  env: Record<string, string>;
+  costPerThousandTokensUsd: number;
+  ollamaHost: string;
+}
+
+export interface CustomHttpRunnerProfile {
+  id: string;
+  name: string;
+  type: 'custom-http';
+  workspacePath: string;
+  env: Record<string, string>;
+  costPerThousandTokensUsd: number;
+  endpointUrl: string;
+  headers: Record<string, string>;
+}
+
+export type RunnerProfile = CommandRunnerProfile | OpenAIRunnerProfile | AnthropicRunnerProfile | OllamaRunnerProfile | CustomHttpRunnerProfile;
 
 export interface Run {
   id: string;

@@ -87,5 +87,18 @@ export const commandCenterClient = {
     onApprovalRequest: boolean;
     onRunComplete: boolean;
     onRunFailed: boolean;
-  }>) => window.commandCenter.setNotificationPrefs(prefs)
+  }>) => window.commandCenter.setNotificationPrefs(prefs),
+
+  // Telemetry
+  getTelemetryPrefs: () => window.commandCenter.getTelemetryPrefs(),
+  setTelemetryPrefs: (update: Partial<{ enabled: boolean; webhookUrl: string }>) =>
+    window.commandCenter.setTelemetryPrefs(update),
+  getTelemetryEvents: (limit?: number) => window.commandCenter.getTelemetryEvents(limit),
+  getTelemetrySummary: () => window.commandCenter.getTelemetrySummary(),
+
+  // Backup & restore
+  createBackup: (targetPath: string) => window.commandCenter.createBackup(targetPath),
+  restoreBackup: (sourcePath: string) => window.commandCenter.restoreBackup(sourcePath),
+  listBackups: (directory: string) => window.commandCenter.listBackups(directory),
+  autoBackup: (dataDir: string) => window.commandCenter.autoBackup(dataDir)
 };

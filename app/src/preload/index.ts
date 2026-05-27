@@ -123,7 +123,27 @@ const commandCenter = {
     onApprovalRequest: boolean;
     onRunComplete: boolean;
     onRunFailed: boolean;
-  }> => ipcRenderer.invoke('notifications:set', prefs)
+  }> => ipcRenderer.invoke('notifications:set', prefs),
+
+  // Telemetry
+  getTelemetryPrefs: (): Promise<{ enabled: boolean; webhookUrl: string }> =>
+    ipcRenderer.invoke('telemetry:getPrefs'),
+  setTelemetryPrefs: (update: Partial<{ enabled: boolean; webhookUrl: string }>): Promise<{ enabled: boolean; webhookUrl: string }> =>
+    ipcRenderer.invoke('telemetry:setPrefs', update),
+  getTelemetryEvents: (limit?: number): Promise<Array<{ id: string; event: string; properties: Record<string, string | number | boolean>; timestamp: string }>> =>
+    ipcRenderer.invoke('telemetry:getEvents', limit),
+  getTelemetrySummary: (): Promise<{ totalEvents: number; eventCounts: Record<string, number>; lastEvent: string | null }> =>
+    ipcRenderer.invoke('telemetry:getSummary'),
+
+  // Backup & restore
+  createBackup: (targetPath: string): Promise<{ version: string; createdAt: string; collections: number; totalRecords: number }> =>
+    ipcRenderer.invoke('backup:create', targetPath),
+  restoreBackup: (sourcePath: string): Promise<{ version: string; createdAt: string; collections: number; totalRecords: number }> =>
+    ipcRenderer.invoke('backup:restore', sourcePath),
+  listBackups: (directory: string): Promise<Array<{ version: string; createdAt: string; collections: number; totalRecords: number }>> =>
+    ipcRenderer.invoke('backup:list', directory),
+  autoBackup: (dataDir: string): Promise<string> =>
+    ipcRenderer.invoke('backup:auto', dataDir)
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);
