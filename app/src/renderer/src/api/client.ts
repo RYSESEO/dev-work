@@ -1,4 +1,7 @@
-import type { Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate } from '../../../shared/domain';
+import type {
+  Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
+  ApiScope, ExternalIntegration, WebhookServerConfig
+} from '../../../shared/domain';
 
 export const commandCenterClient = {
   getSnapshot: (knownVersion?: number) => window.commandCenter.getSnapshot(knownVersion),
@@ -100,5 +103,17 @@ export const commandCenterClient = {
   createBackup: (targetPath: string) => window.commandCenter.createBackup(targetPath),
   restoreBackup: (sourcePath: string) => window.commandCenter.restoreBackup(sourcePath),
   listBackups: (directory: string) => window.commandCenter.listBackups(directory),
-  autoBackup: (dataDir: string) => window.commandCenter.autoBackup(dataDir)
+  autoBackup: (dataDir: string) => window.commandCenter.autoBackup(dataDir),
+
+  // Webhook / API integration
+  createApiKey: (name: string, scopes: ApiScope[]) => window.commandCenter.createApiKey(name, scopes),
+  revokeApiKey: (id: string) => window.commandCenter.revokeApiKey(id),
+  listApiKeys: () => window.commandCenter.listApiKeys(),
+  getWebhookConfig: () => window.commandCenter.getWebhookConfig(),
+  updateWebhookConfig: (update: Partial<WebhookServerConfig>) => window.commandCenter.updateWebhookConfig(update),
+  getWebhookEvents: (limit?: number) => window.commandCenter.getWebhookEvents(limit),
+  listIntegrations: () => window.commandCenter.listIntegrations(),
+  createIntegration: (name: string, type: ExternalIntegration['type'], apiKeyId: string) =>
+    window.commandCenter.createIntegration(name, type, apiKeyId),
+  deleteIntegration: (id: string) => window.commandCenter.deleteIntegration(id)
 };

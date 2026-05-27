@@ -12,7 +12,9 @@ export type IdPrefix =
   | 'workflow'
   | 'user'
   | 'license'
-  | 'telemetry';
+  | 'telemetry'
+  | 'apikey'
+  | 'integration';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -333,6 +335,92 @@ export interface LicenseStatus {
   activated: boolean;
 }
 
+// ── Webhook / API Integration ───────────────────────────────────────
+
+export type WebhookEventType =
+  | 'run.started'
+  | 'run.progress'
+  | 'run.completed'
+  | 'run.failed'
+  | 'usage.report'
+  | 'artifact.created'
+  | 'heartbeat';
+
+export interface WebhookEvent {
+  id: string;
+  integrationId: string;
+  type: WebhookEventType;
+  payload: WebhookRunPayload | WebhookUsagePayload | WebhookArtifactPayload | WebhookHeartbeatPayload;
+  receivedAt: string;
+}
+
+export interface WebhookRunPayload {
+  runId: string;
+  agentName: string;
+  status: 'started' | 'running' | 'completed' | 'failed';
+  prompt?: string;
+  output?: string;
+  durationMs?: number;
+  error?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface WebhookUsagePayload {
+  runId?: string;
+  tokens: number;
+  costUsd: number;
+  model?: string;
+  provider?: string;
+}
+
+export interface WebhookArtifactPayload {
+  runId?: string;
+  title: string;
+  kind: 'log' | 'summary' | 'file' | 'report';
+  content?: string;
+  path?: string;
+}
+
+export interface WebhookHeartbeatPayload {
+  agentName: string;
+  version?: string;
+  uptime?: number;
+}
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyHash: string;
+  prefix: string;
+  scopes: ApiScope[];
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revoked: boolean;
+}
+
+export type ApiScope = 'events:write' | 'events:read' | 'status:read';
+
+export interface ExternalIntegration {
+  id: string;
+  name: string;
+  type: 'cursor' | 'copilot' | 'devin' | 'custom' | 'cli' | 'ci-cd';
+  apiKeyId: string;
+  status: 'active' | 'inactive' | 'error';
+  lastSeenAt: string | null;
+  eventCount: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  metadata: Record<string, string>;
+  createdAt: string;
+}
+
+export interface WebhookServerConfig {
+  enabled: boolean;
+  port: number;
+  host: string;
+}
+
 export interface DashboardSnapshot {
   missions: Mission[];
   tasks: Task[];
@@ -353,6 +441,9 @@ export interface DashboardSnapshot {
   analytics: AnalyticsSnapshot | null;
   sandboxConfig: SandboxConfig;
   license: LicenseStatus;
+  integrations: ExternalIntegration[];
+  apiKeys: Array<Omit<ApiKey, 'keyHash'>>;
+  webhookServer: WebhookServerConfig;
   storeVersion?: number;
 }
 

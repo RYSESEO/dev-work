@@ -4,7 +4,10 @@ import path from 'node:path';
 import { createAppStore } from './db/appStore.js';
 import { createAuthService } from './services/auth.js';
 import { createOrchestrator, type Orchestrator } from './services/orchestrator.js';
-import type { Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate } from '../shared/domain.js';
+import type {
+  Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
+  ApiScope, ExternalIntegration, WebhookServerConfig
+} from '../shared/domain.js';
 
 let orchestratorPromise: Promise<Orchestrator> | null = null;
 
@@ -200,5 +203,34 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('backup:auto', async (_event, dataDir: string) =>
     (await getOrchestrator()).autoBackup(dataDir)
+  );
+
+  // Webhook / API integration
+  ipcMain.handle('apiKey:create', async (_event, name: string, scopes: ApiScope[]) =>
+    (await getOrchestrator()).createApiKey(name, scopes)
+  );
+  ipcMain.handle('apiKey:revoke', async (_event, id: string) =>
+    (await getOrchestrator()).revokeApiKey(id)
+  );
+  ipcMain.handle('apiKey:list', async () =>
+    (await getOrchestrator()).listApiKeys()
+  );
+  ipcMain.handle('webhook:getConfig', async () =>
+    (await getOrchestrator()).getWebhookConfig()
+  );
+  ipcMain.handle('webhook:updateConfig', async (_event, update: Partial<WebhookServerConfig>) =>
+    (await getOrchestrator()).updateWebhookConfig(update)
+  );
+  ipcMain.handle('webhook:getEvents', async (_event, limit?: number) =>
+    (await getOrchestrator()).getWebhookEvents(limit)
+  );
+  ipcMain.handle('integration:list', async () =>
+    (await getOrchestrator()).getIntegrations()
+  );
+  ipcMain.handle('integration:create', async (_event, name: string, type: ExternalIntegration['type'], apiKeyId: string) =>
+    (await getOrchestrator()).createIntegration(name, type, apiKeyId)
+  );
+  ipcMain.handle('integration:delete', async (_event, id: string) =>
+    (await getOrchestrator()).deleteIntegration(id)
   );
 }

@@ -33,7 +33,10 @@ const snapshot: DashboardSnapshot = {
   currentUser: null,
   analytics: null,
   sandboxConfig: { enabled: false, runtime: 'none', image: '', memoryLimitMb: 512, cpuLimit: 1, networkAccess: false, mountPaths: [], timeoutSeconds: 300 },
-  license: { tier: 'free', maxAgents: 3, maxRunners: 1, maxUsers: 1, features: [], validUntil: null, activated: false }
+  license: { tier: 'free', maxAgents: 3, maxRunners: 1, maxUsers: 1, features: [], validUntil: null, activated: false },
+  integrations: [],
+  apiKeys: [],
+  webhookServer: { enabled: false, port: 9400, host: '127.0.0.1' }
 };
 
 beforeEach(() => {
