@@ -2142,6 +2142,50 @@ textarea {
   color: var(--text-secondary, #94a3b8);
 }
 
+/* Adapter Quick Start Guides */
+.adapter-guides {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.adapter-card {
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 10px;
+  padding: 1rem;
+  background: var(--surface, #141820);
+  transition: border-color 0.15s;
+}
+
+.adapter-card:hover {
+  border-color: var(--accent, #60a5fa);
+}
+
+.adapter-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--accent, #60a5fa);
+}
+
+.adapter-install {
+  display: block;
+  font-size: 0.82rem;
+  font-family: var(--font-mono, 'SF Mono', monospace);
+  background: var(--surface-muted, #1a1d23);
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary, #e2e8f0);
+}
+
+.adapter-card .code-block {
+  font-size: 0.75rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
 .api-docs {
   padding: 0 1rem 1rem;
 }

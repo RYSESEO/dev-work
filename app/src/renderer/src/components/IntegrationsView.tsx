@@ -1,4 +1,4 @@
-import { Copy, Key, Plug, Plus, Power, PowerOff, RefreshCw, Trash2 } from 'lucide-react';
+import { Book, Copy, Key, Plug, Plus, Power, PowerOff, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { ApiScope, DashboardSnapshot, ExternalIntegration, WebhookServerConfig } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
@@ -363,6 +363,138 @@ export function IntegrationsView({ snapshot, onRefresh }: Props) {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Quick Start Guides */}
+      <section className="panel">
+        <div className="panel-heading">
+          <span className="panel-icon" aria-hidden="true"><Book size={18} /></span>
+          <div>
+            <h2>Quick Start Guides</h2>
+            <p>Pre-built adapters to get your agents reporting in minutes.</p>
+          </div>
+        </div>
+        <div className="adapter-guides">
+          <div className="adapter-card">
+            <h3>TypeScript SDK</h3>
+            <code className="adapter-install">npm install @dev-work/agent-sdk</code>
+            <pre className="code-block">{`import { DevWorkClient } from '@dev-work/agent-sdk';
+
+const client = new DevWorkClient({
+  apiKey: '${activeKeys[0]?.prefix ? activeKeys[0].prefix + '...' : 'dw_your_key'}',
+  port: ${webhookServer.port}
+});
+
+const run = await client.startRun('my-agent', 'Task description');
+await run.progress('Working...');
+await run.usage(1500, 0.045, 'gpt-4o', 'openai');
+await run.complete('Done!', 12000);
+client.destroy();`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>CLI Wrapper</h3>
+            <code className="adapter-install">npm install -g @dev-work/cli</code>
+            <pre className="code-block">{`# Set your API key
+export DEVWORK_API_KEY="${activeKeys[0]?.prefix ? activeKeys[0].prefix + '...' : 'dw_your_key'}"
+export DEVWORK_PORT=${webhookServer.port}
+
+# Wrap any command — auto-reports start/complete/fail
+dw-agent run -- npm test
+dw-agent run --agent cursor -- cursor-agent --task "Fix bug"
+
+# Report usage manually
+dw-agent report 1500 0.045 --model gpt-4o --provider openai
+
+# Send heartbeat
+dw-agent heartbeat --agent my-bot`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>GitHub Actions</h3>
+            <pre className="code-block">{`# .github/workflows/ci.yml
+- name: Run tests (tracked by dev-work)
+  uses: RYSESEO/dev-work/packages/github-action@main
+  with:
+    api-key: \${{ secrets.DEVWORK_API_KEY }}
+    host: \${{ secrets.DEVWORK_HOST }}
+    port: '${webhookServer.port}'
+    run-command: 'npm test'`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>Cursor</h3>
+            <pre className="code-block">{`# Option 1: CLI wrapper
+dw-agent run --agent cursor -- cursor-agent --task "Fix auth"
+
+# Option 2: SDK in your automation
+import { DevWorkClient } from '@dev-work/agent-sdk';
+const client = new DevWorkClient({
+  apiKey: '...', agentName: 'cursor',
+  heartbeatInterval: 60_000
+});
+const run = await client.startRun('cursor', 'Refactor auth');`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>Copilot</h3>
+            <pre className="code-block">{`# Track Copilot CLI invocations
+dw-agent run --agent copilot -- gh copilot suggest "Deploy to K8s"
+
+# Or use the SDK for session tracking
+const run = await client.startRun('copilot', 'Coding session');
+await run.usage(850, 0, 'copilot', 'github');
+await run.complete('Session ended', 3600000, {
+  suggestionsAccepted: '24'
+});`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>Devin</h3>
+            <pre className="code-block">{`# Webhook bridge: Devin → dev-work
+# Map Devin session events to dev-work schema:
+#   session.created  → run.started
+#   session.updated  → run.progress
+#   session.completed → run.completed
+#   session.failed   → run.failed
+#   usage            → usage.report
+
+# Or use the CLI wrapper:
+dw-agent run --agent devin -- devin "Implement auth"`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>GitLab CI</h3>
+            <pre className="code-block">{`# .gitlab-ci.yml
+include:
+  - remote: 'https://raw.githubusercontent.com/RYSESEO/dev-work/main/packages/adapters/gitlab-ci-template.yml'
+
+build:
+  extends: .devwork-tracked
+  variables:
+    DEVWORK_API_KEY: ${'$'}DEVWORK_API_KEY
+    DEVWORK_HOST: ${'$'}DEVWORK_HOST
+  script:
+    - npm ci && npm test`}</pre>
+          </div>
+
+          <div className="adapter-card">
+            <h3>curl (Any Language)</h3>
+            <pre className="code-block">{`curl -X POST http://${webhookServer.host}:${webhookServer.port}/api/v1/events \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${activeKeys[0]?.prefix ? activeKeys[0].prefix + '...' : 'dw_your_key'}" \\
+  -d '{
+    "type": "run.completed",
+    "payload": {
+      "runId": "my-run-001",
+      "agentName": "my-agent",
+      "status": "completed",
+      "output": "Task done",
+      "durationMs": 5000
+    }
+  }'`}</pre>
+          </div>
+        </div>
       </section>
 
       {/* API Documentation */}

@@ -1,0 +1,44 @@
+{
+  "name": "@dev-work/cli",
+  "version": "0.1.0",
+  "description": "CLI wrapper for tracking agent commands in the dev-work dashboard",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "dw-agent": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dev-work",
+    "agent",
+    "cli",
+    "wrapper",
+    "observability"
+  ],
+  "author": {
+    "name": "RYSESEO",
+    "email": "heck@ryseseo.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RYSESEO/dev-work",
+    "directory": "packages/cli"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  }
+}
