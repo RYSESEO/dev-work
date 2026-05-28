@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bot,
   ClipboardCheck,
+  DollarSign,
   GitBranch,
   Package,
   Plug,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 
-export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'marketplace' | 'analytics' | 'team' | 'security' | 'usage' | 'integrations' | 'settings';
+export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'marketplace' | 'analytics' | 'costs' | 'team' | 'security' | 'usage' | 'integrations' | 'settings';
 
 interface NavGroup {
   label: string;
@@ -41,7 +42,8 @@ const navGroups: NavGroup[] = [
     label: 'Insights',
     items: [
       { id: 'analytics', label: 'Analytics', icon: TrendingUp, shortcut: '6' },
-      { id: 'usage', label: 'Usage', icon: BarChart3, shortcut: '7' }
+      { id: 'costs', label: 'Cost Intel', icon: DollarSign, shortcut: '7' },
+      { id: 'usage', label: 'Usage', icon: BarChart3, shortcut: '' }
     ]
   },
   {

@@ -1,6 +1,7 @@
 import type {
   Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
-  ApiScope, ExternalIntegration, WebhookServerConfig
+  ApiScope, ExternalIntegration, WebhookServerConfig,
+  BudgetPeriod, BudgetAction, Budget
 } from '../../../shared/domain';
 
 export const commandCenterClient = {
@@ -115,5 +116,13 @@ export const commandCenterClient = {
   listIntegrations: () => window.commandCenter.listIntegrations(),
   createIntegration: (name: string, type: ExternalIntegration['type'], apiKeyId: string) =>
     window.commandCenter.createIntegration(name, type, apiKeyId),
-  deleteIntegration: (id: string) => window.commandCenter.deleteIntegration(id)
+  deleteIntegration: (id: string) => window.commandCenter.deleteIntegration(id),
+
+  // Cost Intelligence
+  getCostIntelligence: () => window.commandCenter.getCostIntelligence(),
+  createBudget: (name: string, limitUsd: number, period: BudgetPeriod, action: BudgetAction) =>
+    window.commandCenter.createBudget(name, limitUsd, period, action),
+  updateBudget: (id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>) =>
+    window.commandCenter.updateBudget(id, update),
+  deleteBudget: (id: string) => window.commandCenter.deleteBudget(id)
 };

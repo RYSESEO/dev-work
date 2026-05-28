@@ -14,7 +14,9 @@ export type IdPrefix =
   | 'license'
   | 'telemetry'
   | 'apikey'
-  | 'integration';
+  | 'integration'
+  | 'budget'
+  | 'anomaly';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -335,6 +337,67 @@ export interface LicenseStatus {
   activated: boolean;
 }
 
+// ── Cost Intelligence ───────────────────────────────────────────────
+
+export type BudgetPeriod = 'daily' | 'weekly' | 'monthly';
+export type BudgetAction = 'alert' | 'throttle' | 'block';
+
+export interface Budget {
+  id: string;
+  name: string;
+  limitUsd: number;
+  period: BudgetPeriod;
+  action: BudgetAction;
+  spentUsd: number;
+  enabled: boolean;
+  resetAt: string;
+  createdAt: string;
+}
+
+export interface CostForecast {
+  period: 'next_7d' | 'next_30d';
+  projectedCostUsd: number;
+  projectedTokens: number;
+  trend: 'increasing' | 'decreasing' | 'stable';
+  trendPct: number;
+  confidence: 'low' | 'medium' | 'high';
+  dailyAvgCostUsd: number;
+  dailyAvgTokens: number;
+}
+
+export interface CostAnomaly {
+  id: string;
+  detectedAt: string;
+  type: 'cost_spike' | 'token_spike' | 'frequency_spike' | 'unusual_model';
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  value: number;
+  baseline: number;
+  runId?: string;
+  agentName?: string;
+}
+
+export interface ModelCostEntry {
+  model: string;
+  provider: string;
+  totalTokens: number;
+  totalCostUsd: number;
+  runCount: number;
+  avgCostPerRun: number;
+  avgTokensPerRun: number;
+  costPer1kTokens: number;
+}
+
+export interface CostIntelligenceSnapshot {
+  budgets: Budget[];
+  forecasts: CostForecast[];
+  anomalies: CostAnomaly[];
+  modelCosts: ModelCostEntry[];
+  totalSpentToday: number;
+  totalSpentThisWeek: number;
+  totalSpentThisMonth: number;
+}
+
 // ── Webhook / API Integration ───────────────────────────────────────
 
 export type WebhookEventType =
@@ -444,6 +507,7 @@ export interface DashboardSnapshot {
   integrations: ExternalIntegration[];
   apiKeys: Array<Omit<ApiKey, 'keyHash'>>;
   webhookServer: WebhookServerConfig;
+  costIntelligence: CostIntelligenceSnapshot;
   storeVersion?: number;
 }
 

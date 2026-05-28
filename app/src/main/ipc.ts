@@ -6,7 +6,8 @@ import { createAuthService } from './services/auth.js';
 import { createOrchestrator, type Orchestrator } from './services/orchestrator.js';
 import type {
   Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
-  ApiScope, ExternalIntegration, WebhookServerConfig
+  ApiScope, ExternalIntegration, WebhookServerConfig,
+  BudgetPeriod, BudgetAction, Budget
 } from '../shared/domain.js';
 
 let orchestratorPromise: Promise<Orchestrator> | null = null;
@@ -232,5 +233,19 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('integration:delete', async (_event, id: string) =>
     (await getOrchestrator()).deleteIntegration(id)
+  );
+
+  // Cost Intelligence
+  ipcMain.handle('cost:intelligence', async () =>
+    (await getOrchestrator()).getCostIntelligence()
+  );
+  ipcMain.handle('budget:create', async (_event, name: string, limitUsd: number, period: BudgetPeriod, action: BudgetAction) =>
+    (await getOrchestrator()).createBudget(name, limitUsd, period, action)
+  );
+  ipcMain.handle('budget:update', async (_event, id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>) =>
+    (await getOrchestrator()).updateBudget(id, update)
+  );
+  ipcMain.handle('budget:delete', async (_event, id: string) =>
+    (await getOrchestrator()).deleteBudget(id)
   );
 }
