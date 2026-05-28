@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   DollarSign,
   GitBranch,
+  Network,
   Package,
   Plug,
   Settings,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 
-export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'marketplace' | 'analytics' | 'costs' | 'team' | 'security' | 'usage' | 'integrations' | 'settings';
+export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'collaboration' | 'marketplace' | 'analytics' | 'costs' | 'team' | 'security' | 'usage' | 'integrations' | 'settings';
 
 interface NavGroup {
   label: string;
@@ -35,7 +36,8 @@ const navGroups: NavGroup[] = [
     label: 'Automation',
     items: [
       { id: 'workflows', label: 'Workflows', icon: GitBranch, shortcut: '4' },
-      { id: 'marketplace', label: 'Marketplace', icon: Package, shortcut: '5' }
+      { id: 'collaboration', label: 'Collaborate', icon: Network, shortcut: '5' },
+      { id: 'marketplace', label: 'Marketplace', icon: Package, shortcut: '' }
     ]
   },
   {

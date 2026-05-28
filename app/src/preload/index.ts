@@ -22,7 +22,14 @@ import type {
   Budget,
   BudgetPeriod,
   BudgetAction,
-  CostIntelligenceSnapshot
+  CostIntelligenceSnapshot,
+  CollaborationSession,
+  CollaborationSnapshot,
+  SubTask,
+  SubTaskStatus,
+  AgentMessage,
+  AgentMessageType,
+  ConflictRecord
 } from '../shared/domain.js';
 
 const commandCenter = {
@@ -174,7 +181,37 @@ const commandCenter = {
     ipcRenderer.invoke('budget:create', name, limitUsd, period, action),
   updateBudget: (id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>): Promise<Budget> =>
     ipcRenderer.invoke('budget:update', id, update),
-  deleteBudget: (id: string): Promise<void> => ipcRenderer.invoke('budget:delete', id)
+  deleteBudget: (id: string): Promise<void> => ipcRenderer.invoke('budget:delete', id),
+
+  // Collaboration
+  getCollaboration: (): Promise<CollaborationSnapshot> => ipcRenderer.invoke('collab:snapshot'),
+  createCollabSession: (title: string, description: string, strategy: CollaborationSession['strategy'], missionId: string | null, maxConcurrency?: number): Promise<CollaborationSession> =>
+    ipcRenderer.invoke('collab:create', title, description, strategy, missionId, maxConcurrency),
+  deleteCollabSession: (id: string): Promise<void> => ipcRenderer.invoke('collab:delete', id),
+  getCollabSession: (id: string): Promise<CollaborationSession> => ipcRenderer.invoke('collab:get', id),
+  updateCollabStatus: (id: string, status: CollaborationSession['status']): Promise<CollaborationSession> =>
+    ipcRenderer.invoke('collab:status', id, status),
+  addCollabSubTask: (sessionId: string, title: string, description: string, dependsOn?: string[], priority?: SubTask['priority']): Promise<SubTask> =>
+    ipcRenderer.invoke('collab:subtask:add', sessionId, title, description, dependsOn, priority),
+  updateCollabSubTaskStatus: (sessionId: string, subTaskId: string, status: SubTaskStatus, output?: string): Promise<SubTask> =>
+    ipcRenderer.invoke('collab:subtask:status', sessionId, subTaskId, status, output),
+  assignCollabSubTask: (sessionId: string, subTaskId: string, agentId: string): Promise<SubTask> =>
+    ipcRenderer.invoke('collab:subtask:assign', sessionId, subTaskId, agentId),
+  deleteCollabSubTask: (sessionId: string, subTaskId: string): Promise<void> =>
+    ipcRenderer.invoke('collab:subtask:delete', sessionId, subTaskId),
+  assignCollabAgent: (sessionId: string, agentId: string, role: string): Promise<void> =>
+    ipcRenderer.invoke('collab:agent:assign', sessionId, agentId, role),
+  removeCollabAgent: (sessionId: string, agentId: string): Promise<void> =>
+    ipcRenderer.invoke('collab:agent:remove', sessionId, agentId),
+  setCollabContext: (sessionId: string, key: string, value: string, setBy: string): Promise<void> =>
+    ipcRenderer.invoke('collab:context:set', sessionId, key, value, setBy),
+  sendCollabMessage: (sessionId: string, fromAgentId: string, toAgentId: string | null, type: AgentMessageType, subject: string, body: string): Promise<AgentMessage> =>
+    ipcRenderer.invoke('collab:message:send', sessionId, fromAgentId, toAgentId, type, subject, body),
+  reportCollabConflict: (sessionId: string, type: ConflictRecord['type'], description: string, involvedAgentIds: string[]): Promise<ConflictRecord> =>
+    ipcRenderer.invoke('collab:conflict:report', sessionId, type, description, involvedAgentIds),
+  resolveCollabConflict: (sessionId: string, conflictId: string, resolution: string): Promise<ConflictRecord> =>
+    ipcRenderer.invoke('collab:conflict:resolve', sessionId, conflictId, resolution),
+  executeCollabSession: (sessionId: string): Promise<void> => ipcRenderer.invoke('collab:execute', sessionId)
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);

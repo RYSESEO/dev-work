@@ -16,7 +16,10 @@ export type IdPrefix =
   | 'apikey'
   | 'integration'
   | 'budget'
-  | 'anomaly';
+  | 'anomaly'
+  | 'collab'
+  | 'message'
+  | 'subtask';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -508,7 +511,94 @@ export interface DashboardSnapshot {
   apiKeys: Array<Omit<ApiKey, 'keyHash'>>;
   webhookServer: WebhookServerConfig;
   costIntelligence: CostIntelligenceSnapshot;
+  collaboration: CollaborationSnapshot;
   storeVersion?: number;
+}
+
+// ── Multi-Agent Collaboration ───────────────────────────────────────
+
+export type CollaborationStatus = 'planning' | 'running' | 'merging' | 'completed' | 'failed' | 'cancelled';
+export type SubTaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'skipped';
+export type AgentMessageType = 'status_update' | 'data_share' | 'conflict' | 'request' | 'resolution';
+
+export interface CollaborationSession {
+  id: string;
+  missionId: string | null;
+  title: string;
+  description: string;
+  status: CollaborationStatus;
+  strategy: 'parallel' | 'pipeline' | 'divide_and_conquer';
+  maxConcurrency: number;
+  subTasks: SubTask[];
+  agentAssignments: AgentAssignment[];
+  sharedContext: SharedContextEntry[];
+  messages: AgentMessage[];
+  conflicts: ConflictRecord[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface SubTask {
+  id: string;
+  sessionId: string;
+  parentTaskId: string | null;
+  title: string;
+  description: string;
+  status: SubTaskStatus;
+  assignedAgentId: string | null;
+  runId: string | null;
+  dependsOn: string[];
+  priority: 'low' | 'normal' | 'high';
+  output: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface AgentAssignment {
+  agentId: string;
+  role: string;
+  subTaskIds: string[];
+  status: 'idle' | 'working' | 'done' | 'failed';
+}
+
+export interface SharedContextEntry {
+  key: string;
+  value: string;
+  setBy: string;
+  setAt: string;
+}
+
+export interface AgentMessage {
+  id: string;
+  sessionId: string;
+  fromAgentId: string;
+  toAgentId: string | null;
+  type: AgentMessageType;
+  subject: string;
+  body: string;
+  metadata: Record<string, string>;
+  createdAt: string;
+}
+
+export interface ConflictRecord {
+  id: string;
+  sessionId: string;
+  type: 'resource_contention' | 'output_mismatch' | 'dependency_deadlock';
+  description: string;
+  involvedAgentIds: string[];
+  resolution: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+export interface CollaborationSnapshot {
+  sessions: CollaborationSession[];
+  activeSessions: number;
+  totalCompleted: number;
+  totalSubTasks: number;
+  completedSubTasks: number;
+  avgCompletionTimeMs: number;
 }
 
 export function createId(prefix: IdPrefix): string {

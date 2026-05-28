@@ -1,7 +1,8 @@
 import type {
   Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
   ApiScope, ExternalIntegration, WebhookServerConfig,
-  BudgetPeriod, BudgetAction, Budget
+  BudgetPeriod, BudgetAction, Budget,
+  CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord
 } from '../../../shared/domain';
 
 export const commandCenterClient = {
@@ -124,5 +125,35 @@ export const commandCenterClient = {
     window.commandCenter.createBudget(name, limitUsd, period, action),
   updateBudget: (id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>) =>
     window.commandCenter.updateBudget(id, update),
-  deleteBudget: (id: string) => window.commandCenter.deleteBudget(id)
+  deleteBudget: (id: string) => window.commandCenter.deleteBudget(id),
+
+  // Collaboration
+  getCollaboration: () => window.commandCenter.getCollaboration(),
+  createCollabSession: (title: string, description: string, strategy: CollaborationSession['strategy'], missionId: string | null, maxConcurrency?: number) =>
+    window.commandCenter.createCollabSession(title, description, strategy, missionId, maxConcurrency),
+  deleteCollabSession: (id: string) => window.commandCenter.deleteCollabSession(id),
+  getCollabSession: (id: string) => window.commandCenter.getCollabSession(id),
+  updateCollabStatus: (id: string, status: CollaborationSession['status']) =>
+    window.commandCenter.updateCollabStatus(id, status),
+  addCollabSubTask: (sessionId: string, title: string, description: string, dependsOn?: string[], priority?: SubTask['priority']) =>
+    window.commandCenter.addCollabSubTask(sessionId, title, description, dependsOn, priority),
+  updateCollabSubTaskStatus: (sessionId: string, subTaskId: string, status: SubTaskStatus, output?: string) =>
+    window.commandCenter.updateCollabSubTaskStatus(sessionId, subTaskId, status, output),
+  assignCollabSubTask: (sessionId: string, subTaskId: string, agentId: string) =>
+    window.commandCenter.assignCollabSubTask(sessionId, subTaskId, agentId),
+  deleteCollabSubTask: (sessionId: string, subTaskId: string) =>
+    window.commandCenter.deleteCollabSubTask(sessionId, subTaskId),
+  assignCollabAgent: (sessionId: string, agentId: string, role: string) =>
+    window.commandCenter.assignCollabAgent(sessionId, agentId, role),
+  removeCollabAgent: (sessionId: string, agentId: string) =>
+    window.commandCenter.removeCollabAgent(sessionId, agentId),
+  setCollabContext: (sessionId: string, key: string, value: string, setBy: string) =>
+    window.commandCenter.setCollabContext(sessionId, key, value, setBy),
+  sendCollabMessage: (sessionId: string, fromAgentId: string, toAgentId: string | null, type: AgentMessageType, subject: string, body: string) =>
+    window.commandCenter.sendCollabMessage(sessionId, fromAgentId, toAgentId, type, subject, body),
+  reportCollabConflict: (sessionId: string, type: ConflictRecord['type'], description: string, involvedAgentIds: string[]) =>
+    window.commandCenter.reportCollabConflict(sessionId, type, description, involvedAgentIds),
+  resolveCollabConflict: (sessionId: string, conflictId: string, resolution: string) =>
+    window.commandCenter.resolveCollabConflict(sessionId, conflictId, resolution),
+  executeCollabSession: (sessionId: string) => window.commandCenter.executeCollabSession(sessionId)
 };

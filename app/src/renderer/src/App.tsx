@@ -5,6 +5,7 @@ import type { DashboardSnapshot } from '../../shared/domain';
 import { commandCenterClient } from './api/client';
 import { AgentsView } from './components/AgentsView';
 import { AnalyticsView } from './components/AnalyticsView';
+import { CollaborationView } from './components/CollaborationView';
 import { CostIntelligenceView } from './components/CostIntelligenceView';
 import { CostUsageView } from './components/CostUsageView';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -148,6 +149,7 @@ export function App(): JSX.Element {
               {activeTab === 'agents' && <AgentsView snapshot={snapshot} />}
               {activeTab === 'tasks' && <TasksView snapshot={snapshot} onRefresh={refresh} onNavigate={setActiveTab} />}
               {activeTab === 'workflows' && <WorkflowsView snapshot={snapshot} onRefresh={refresh} />}
+              {activeTab === 'collaboration' && <CollaborationView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'marketplace' && <MarketplaceView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'analytics' && <AnalyticsView />}
               {activeTab === 'team' && <TeamView snapshot={snapshot} onRefresh={refresh} />}

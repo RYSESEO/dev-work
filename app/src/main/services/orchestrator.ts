@@ -20,6 +20,7 @@ import { createBackupService, type BackupMetadata, type BackupService } from './
 import { createApiKeyService, type ApiKeyService } from './apiKeys.js';
 import { createWebhookServer, type WebhookServer } from './webhookServer.js';
 import { createCostIntelligenceService, type CostIntelligenceService } from './costIntelligence.js';
+import { createCollaborationService, type CollaborationService } from './collaboration.js';
 import {
   createId,
   isTerminalRunStatus,
@@ -55,7 +56,14 @@ import {
   type Budget,
   type BudgetPeriod,
   type BudgetAction,
-  type CostIntelligenceSnapshot
+  type CostIntelligenceSnapshot,
+  type CollaborationSession,
+  type CollaborationSnapshot,
+  type SubTask,
+  type SubTaskStatus,
+  type AgentMessage,
+  type AgentMessageType,
+  type ConflictRecord
 } from '../../shared/domain.js';
 
 export interface Orchestrator {
@@ -137,6 +145,23 @@ export interface Orchestrator {
   createBudget(name: string, limitUsd: number, period: BudgetPeriod, action: BudgetAction): Budget;
   updateBudget(id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>): Budget;
   deleteBudget(id: string): void;
+  // Collaboration
+  getCollaboration(): CollaborationSnapshot;
+  createCollabSession(title: string, description: string, strategy: CollaborationSession['strategy'], missionId: string | null, maxConcurrency?: number): CollaborationSession;
+  deleteCollabSession(id: string): void;
+  getCollabSession(id: string): CollaborationSession;
+  updateCollabStatus(id: string, status: CollaborationSession['status']): CollaborationSession;
+  addCollabSubTask(sessionId: string, title: string, description: string, dependsOn?: string[], priority?: SubTask['priority']): SubTask;
+  updateCollabSubTaskStatus(sessionId: string, subTaskId: string, status: SubTaskStatus, output?: string): SubTask;
+  assignCollabSubTask(sessionId: string, subTaskId: string, agentId: string): SubTask;
+  deleteCollabSubTask(sessionId: string, subTaskId: string): void;
+  assignCollabAgent(sessionId: string, agentId: string, role: string): void;
+  removeCollabAgent(sessionId: string, agentId: string): void;
+  setCollabContext(sessionId: string, key: string, value: string, setBy: string): void;
+  sendCollabMessage(sessionId: string, fromAgentId: string, toAgentId: string | null, type: AgentMessageType, subject: string, body: string): AgentMessage;
+  reportCollabConflict(sessionId: string, type: ConflictRecord['type'], description: string, involvedAgentIds: string[]): ConflictRecord;
+  resolveCollabConflict(sessionId: string, conflictId: string, resolution: string): ConflictRecord;
+  executeCollabSession(sessionId: string): Promise<void>;
 }
 
 const noopAuth: AuthService = {
@@ -158,6 +183,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
   const apiKeysSvc: ApiKeyService = createApiKeyService(store);
   const webhookSrv: WebhookServer = createWebhookServer(store, apiKeysSvc);
   const costIntel: CostIntelligenceService = createCostIntelligenceService(store);
+  const collab: CollaborationService = createCollaborationService(store);
   seedDefaults(store);
   log.info('Orchestrator initialized');
 
@@ -382,7 +408,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     }
   }
 
-  return {
+  const orch: Orchestrator = {
     getSnapshot(): DashboardSnapshot {
       const allEvents = store.getAll<SignificantEvent>('events');
       const allUsage = store.getAll<UsageEvent>('usage');
@@ -410,6 +436,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         apiKeys: apiKeysSvc.list(),
         webhookServer: webhookSrv.getConfig(),
         costIntelligence: costIntel.getSnapshot(),
+        collaboration: collab.getSnapshot(),
         storeVersion: store.getVersion()
       };
     },
@@ -951,8 +978,88 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       requireRole('admin');
       costIntel.deleteBudget(id);
       recordAudit('budget:delete', 'budget', id, 'Deleted budget');
+    },
+    getCollaboration(): CollaborationSnapshot {
+      return collab.getSnapshot();
+    },
+    createCollabSession(title, description, strategy, missionId, maxConcurrency): CollaborationSession {
+      requireRole('admin', 'operator');
+      const session = collab.createSession(title, description, strategy, missionId, maxConcurrency);
+      recordAudit('collab:create', 'collaboration', session.id, `Created session: ${title}`);
+      return session;
+    },
+    deleteCollabSession(id: string): void {
+      requireRole('admin');
+      collab.deleteSession(id);
+      recordAudit('collab:delete', 'collaboration', id, 'Deleted collaboration session');
+    },
+    getCollabSession(id: string): CollaborationSession {
+      return collab.getSession(id);
+    },
+    updateCollabStatus(id, status): CollaborationSession {
+      requireRole('admin', 'operator');
+      const session = collab.updateSessionStatus(id, status);
+      recordAudit('collab:status', 'collaboration', id, `Status changed to ${status}`);
+      return session;
+    },
+    addCollabSubTask(sessionId, title, description, dependsOn, priority): SubTask {
+      requireRole('admin', 'operator');
+      const st = collab.addSubTask(sessionId, title, description, dependsOn, priority);
+      recordAudit('collab:subtask:add', 'collaboration', sessionId, `Added sub-task: ${title}`);
+      return st;
+    },
+    updateCollabSubTaskStatus(sessionId, subTaskId, status, output): SubTask {
+      requireRole('admin', 'operator');
+      return collab.updateSubTaskStatus(sessionId, subTaskId, status, output);
+    },
+    assignCollabSubTask(sessionId, subTaskId, agentId): SubTask {
+      requireRole('admin', 'operator');
+      const st = collab.assignSubTask(sessionId, subTaskId, agentId);
+      recordAudit('collab:subtask:assign', 'collaboration', sessionId, `Assigned ${subTaskId} to ${agentId}`);
+      return st;
+    },
+    deleteCollabSubTask(sessionId, subTaskId): void {
+      requireRole('admin', 'operator');
+      collab.deleteSubTask(sessionId, subTaskId);
+    },
+    assignCollabAgent(sessionId, agentId, role): void {
+      requireRole('admin', 'operator');
+      collab.assignAgent(sessionId, agentId, role);
+      recordAudit('collab:agent:assign', 'collaboration', sessionId, `Assigned agent ${agentId} as ${role}`);
+    },
+    removeCollabAgent(sessionId, agentId): void {
+      requireRole('admin', 'operator');
+      collab.removeAgent(sessionId, agentId);
+    },
+    setCollabContext(sessionId, key, value, setBy): void {
+      requireRole('admin', 'operator');
+      collab.setContext(sessionId, key, value, setBy);
+    },
+    sendCollabMessage(sessionId, fromAgentId, toAgentId, type, subject, body): AgentMessage {
+      requireRole('admin', 'operator');
+      return collab.sendMessage(sessionId, fromAgentId, toAgentId, type, subject, body);
+    },
+    reportCollabConflict(sessionId, type, description, involvedAgentIds): ConflictRecord {
+      requireRole('admin', 'operator');
+      const conflict = collab.reportConflict(sessionId, type, description, involvedAgentIds);
+      recordAudit('collab:conflict', 'collaboration', sessionId, `Conflict: ${description}`);
+      return conflict;
+    },
+    resolveCollabConflict(sessionId, conflictId, resolution): ConflictRecord {
+      requireRole('admin', 'operator');
+      const conflict = collab.resolveConflict(sessionId, conflictId, resolution);
+      recordAudit('collab:conflict:resolve', 'collaboration', sessionId, `Resolved conflict ${conflictId}`);
+      return conflict;
+    },
+    async executeCollabSession(sessionId: string): Promise<void> {
+      requireRole('admin', 'operator');
+      await collab.executeSession(sessionId, (taskId, agentId, prompt) =>
+        orch.launchRun(taskId, agentId, prompt)
+      );
     }
   };
+
+  return orch;
 
   function getSandboxConfig(): SandboxConfig {
     const stored = store.getById<SandboxConfig & { id: string }>('sandboxConfig', 'default');
