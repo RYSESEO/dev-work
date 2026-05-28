@@ -36,7 +36,8 @@ const snapshot: DashboardSnapshot = {
   license: { tier: 'free', maxAgents: 3, maxRunners: 1, maxUsers: 1, features: [], validUntil: null, activated: false },
   integrations: [],
   apiKeys: [],
-  webhookServer: { enabled: false, port: 9400, host: '127.0.0.1' }
+  webhookServer: { enabled: false, port: 9400, host: '127.0.0.1' },
+  costIntelligence: { budgets: [], forecasts: [], anomalies: [], modelCosts: [], totalSpentToday: 0, totalSpentThisWeek: 0, totalSpentThisMonth: 0 }
 };
 
 beforeEach(() => {

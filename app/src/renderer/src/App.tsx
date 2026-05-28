@@ -5,6 +5,7 @@ import type { DashboardSnapshot } from '../../shared/domain';
 import { commandCenterClient } from './api/client';
 import { AgentsView } from './components/AgentsView';
 import { AnalyticsView } from './components/AnalyticsView';
+import { CostIntelligenceView } from './components/CostIntelligenceView';
 import { CostUsageView } from './components/CostUsageView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { IntegrationsView } from './components/IntegrationsView';
@@ -152,6 +153,7 @@ export function App(): JSX.Element {
               {activeTab === 'team' && <TeamView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'security' && <SecurityView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
+              {activeTab === 'costs' && <CostIntelligenceView />}
               {activeTab === 'integrations' && <IntegrationsView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'settings' && <SettingsView snapshot={snapshot} onRefresh={refresh} themeMode={themeMode} onThemeChange={setThemeMode} />}
             </ErrorBoundary>

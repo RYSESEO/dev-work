@@ -26,7 +26,8 @@ export type StoreCollection =
   | 'settings'
   | 'telemetry'
   | 'apiKeys'
-  | 'integrations';
+  | 'integrations'
+  | 'budgets';
 
 export interface AppStore {
   put<T extends { id: string }>(collection: StoreCollection, id: string, value: T): void;
@@ -59,7 +60,8 @@ const collections: StoreCollection[] = [
   'settings',
   'telemetry',
   'apiKeys',
-  'integrations'
+  'integrations',
+  'budgets'
 ];
 
 const require = createRequire(import.meta.url);

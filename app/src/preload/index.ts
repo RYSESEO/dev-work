@@ -18,7 +18,11 @@ import type {
   WebhookServerConfig,
   WorkflowRun,
   WorkflowStep,
-  WorkflowTemplate
+  WorkflowTemplate,
+  Budget,
+  BudgetPeriod,
+  BudgetAction,
+  CostIntelligenceSnapshot
 } from '../shared/domain.js';
 
 const commandCenter = {
@@ -162,7 +166,15 @@ const commandCenter = {
   listIntegrations: (): Promise<ExternalIntegration[]> => ipcRenderer.invoke('integration:list'),
   createIntegration: (name: string, type: ExternalIntegration['type'], apiKeyId: string): Promise<ExternalIntegration> =>
     ipcRenderer.invoke('integration:create', name, type, apiKeyId),
-  deleteIntegration: (id: string): Promise<void> => ipcRenderer.invoke('integration:delete', id)
+  deleteIntegration: (id: string): Promise<void> => ipcRenderer.invoke('integration:delete', id),
+
+  // Cost Intelligence
+  getCostIntelligence: (): Promise<CostIntelligenceSnapshot> => ipcRenderer.invoke('cost:intelligence'),
+  createBudget: (name: string, limitUsd: number, period: BudgetPeriod, action: BudgetAction): Promise<Budget> =>
+    ipcRenderer.invoke('budget:create', name, limitUsd, period, action),
+  updateBudget: (id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>): Promise<Budget> =>
+    ipcRenderer.invoke('budget:update', id, update),
+  deleteBudget: (id: string): Promise<void> => ipcRenderer.invoke('budget:delete', id)
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);

@@ -19,6 +19,7 @@ import { createTelemetryService, type TelemetryEvent, type TelemetryPreferences,
 import { createBackupService, type BackupMetadata, type BackupService } from './backup.js';
 import { createApiKeyService, type ApiKeyService } from './apiKeys.js';
 import { createWebhookServer, type WebhookServer } from './webhookServer.js';
+import { createCostIntelligenceService, type CostIntelligenceService } from './costIntelligence.js';
 import {
   createId,
   isTerminalRunStatus,
@@ -50,7 +51,11 @@ import {
   type ApiScope,
   type ExternalIntegration,
   type WebhookServerConfig,
-  type WebhookEvent
+  type WebhookEvent,
+  type Budget,
+  type BudgetPeriod,
+  type BudgetAction,
+  type CostIntelligenceSnapshot
 } from '../../shared/domain.js';
 
 export interface Orchestrator {
@@ -127,6 +132,11 @@ export interface Orchestrator {
   getIntegrations(): ExternalIntegration[];
   createIntegration(name: string, type: ExternalIntegration['type'], apiKeyId: string): ExternalIntegration;
   deleteIntegration(id: string): void;
+  // Cost Intelligence
+  getCostIntelligence(): CostIntelligenceSnapshot;
+  createBudget(name: string, limitUsd: number, period: BudgetPeriod, action: BudgetAction): Budget;
+  updateBudget(id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>): Budget;
+  deleteBudget(id: string): void;
 }
 
 const noopAuth: AuthService = {
@@ -147,6 +157,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
   const backup: BackupService = createBackupService(store);
   const apiKeysSvc: ApiKeyService = createApiKeyService(store);
   const webhookSrv: WebhookServer = createWebhookServer(store, apiKeysSvc);
+  const costIntel: CostIntelligenceService = createCostIntelligenceService(store);
   seedDefaults(store);
   log.info('Orchestrator initialized');
 
@@ -398,6 +409,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         integrations: webhookSrv.getIntegrations(),
         apiKeys: apiKeysSvc.list(),
         webhookServer: webhookSrv.getConfig(),
+        costIntelligence: costIntel.getSnapshot(),
         storeVersion: store.getVersion()
       };
     },
@@ -919,6 +931,26 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       requireRole('admin');
       webhookSrv.deleteIntegration(id);
       recordAudit('integration:delete', 'integration', id, 'Deleted integration');
+    },
+    getCostIntelligence(): CostIntelligenceSnapshot {
+      return costIntel.getSnapshot();
+    },
+    createBudget(name: string, limitUsd: number, period: BudgetPeriod, action: BudgetAction): Budget {
+      requireRole('admin');
+      const budget = costIntel.createBudget(name, limitUsd, period, action);
+      recordAudit('budget:create', 'budget', budget.id, `Created budget: ${name} ($${limitUsd}/${period})`);
+      return budget;
+    },
+    updateBudget(id: string, update: Partial<Pick<Budget, 'name' | 'limitUsd' | 'period' | 'action' | 'enabled'>>): Budget {
+      requireRole('admin');
+      const budget = costIntel.updateBudget(id, update);
+      recordAudit('budget:update', 'budget', id, `Updated budget: ${budget.name}`);
+      return budget;
+    },
+    deleteBudget(id: string): void {
+      requireRole('admin');
+      costIntel.deleteBudget(id);
+      recordAudit('budget:delete', 'budget', id, 'Deleted budget');
     }
   };
 
