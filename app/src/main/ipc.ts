@@ -7,7 +7,8 @@ import { createOrchestrator, type Orchestrator } from './services/orchestrator.j
 import type {
   Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
   ApiScope, ExternalIntegration, WebhookServerConfig,
-  BudgetPeriod, BudgetAction, Budget
+  BudgetPeriod, BudgetAction, Budget,
+  CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord
 } from '../shared/domain.js';
 
 let orchestratorPromise: Promise<Orchestrator> | null = null;
@@ -247,5 +248,55 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('budget:delete', async (_event, id: string) =>
     (await getOrchestrator()).deleteBudget(id)
+  );
+
+  // Collaboration
+  ipcMain.handle('collab:snapshot', async () =>
+    (await getOrchestrator()).getCollaboration()
+  );
+  ipcMain.handle('collab:create', async (_event, title: string, description: string, strategy: CollaborationSession['strategy'], missionId: string | null, maxConcurrency?: number) =>
+    (await getOrchestrator()).createCollabSession(title, description, strategy, missionId, maxConcurrency)
+  );
+  ipcMain.handle('collab:delete', async (_event, id: string) =>
+    (await getOrchestrator()).deleteCollabSession(id)
+  );
+  ipcMain.handle('collab:get', async (_event, id: string) =>
+    (await getOrchestrator()).getCollabSession(id)
+  );
+  ipcMain.handle('collab:status', async (_event, id: string, status: CollaborationSession['status']) =>
+    (await getOrchestrator()).updateCollabStatus(id, status)
+  );
+  ipcMain.handle('collab:subtask:add', async (_event, sessionId: string, title: string, description: string, dependsOn?: string[], priority?: SubTask['priority']) =>
+    (await getOrchestrator()).addCollabSubTask(sessionId, title, description, dependsOn, priority)
+  );
+  ipcMain.handle('collab:subtask:status', async (_event, sessionId: string, subTaskId: string, status: SubTaskStatus, output?: string) =>
+    (await getOrchestrator()).updateCollabSubTaskStatus(sessionId, subTaskId, status, output)
+  );
+  ipcMain.handle('collab:subtask:assign', async (_event, sessionId: string, subTaskId: string, agentId: string) =>
+    (await getOrchestrator()).assignCollabSubTask(sessionId, subTaskId, agentId)
+  );
+  ipcMain.handle('collab:subtask:delete', async (_event, sessionId: string, subTaskId: string) =>
+    (await getOrchestrator()).deleteCollabSubTask(sessionId, subTaskId)
+  );
+  ipcMain.handle('collab:agent:assign', async (_event, sessionId: string, agentId: string, role: string) =>
+    (await getOrchestrator()).assignCollabAgent(sessionId, agentId, role)
+  );
+  ipcMain.handle('collab:agent:remove', async (_event, sessionId: string, agentId: string) =>
+    (await getOrchestrator()).removeCollabAgent(sessionId, agentId)
+  );
+  ipcMain.handle('collab:context:set', async (_event, sessionId: string, key: string, value: string, setBy: string) =>
+    (await getOrchestrator()).setCollabContext(sessionId, key, value, setBy)
+  );
+  ipcMain.handle('collab:message:send', async (_event, sessionId: string, fromAgentId: string, toAgentId: string | null, type: AgentMessageType, subject: string, body: string) =>
+    (await getOrchestrator()).sendCollabMessage(sessionId, fromAgentId, toAgentId, type, subject, body)
+  );
+  ipcMain.handle('collab:conflict:report', async (_event, sessionId: string, type: ConflictRecord['type'], description: string, involvedAgentIds: string[]) =>
+    (await getOrchestrator()).reportCollabConflict(sessionId, type, description, involvedAgentIds)
+  );
+  ipcMain.handle('collab:conflict:resolve', async (_event, sessionId: string, conflictId: string, resolution: string) =>
+    (await getOrchestrator()).resolveCollabConflict(sessionId, conflictId, resolution)
+  );
+  ipcMain.handle('collab:execute', async (_event, sessionId: string) =>
+    (await getOrchestrator()).executeCollabSession(sessionId)
   );
 }

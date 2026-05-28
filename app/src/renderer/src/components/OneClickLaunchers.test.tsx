@@ -37,7 +37,8 @@ const snapshot: DashboardSnapshot = {
   integrations: [],
   apiKeys: [],
   webhookServer: { enabled: false, port: 9400, host: '127.0.0.1' },
-  costIntelligence: { budgets: [], forecasts: [], anomalies: [], modelCosts: [], totalSpentToday: 0, totalSpentThisWeek: 0, totalSpentThisMonth: 0 }
+  costIntelligence: { budgets: [], forecasts: [], anomalies: [], modelCosts: [], totalSpentToday: 0, totalSpentThisWeek: 0, totalSpentThisMonth: 0 },
+  collaboration: { sessions: [], activeSessions: 0, totalCompleted: 0, totalSubTasks: 0, completedSubTasks: 0, avgCompletionTimeMs: 0 }
 };
 
 beforeEach(() => {
