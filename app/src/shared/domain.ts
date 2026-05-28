@@ -328,7 +328,8 @@ export type LicenseFeature =
   | 'workflow_engine'
   | 'priority_support'
   | 'custom_branding'
-  | 'team_management';
+  | 'team_management'
+  | 'multi_agent_collaboration';
 
 export interface LicenseStatus {
   tier: LicenseTier;

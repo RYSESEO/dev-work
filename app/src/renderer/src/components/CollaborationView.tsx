@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, GitBranch, MessageSquare, Play, Plus, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Bot, GitBranch, Lock, MessageSquare, Play, Plus, Trash2, Users } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AgentProfile,
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export function CollaborationView({ snapshot, onRefresh }: Props) {
+  const hasLicense = snapshot.license.features.includes('multi_agent_collaboration');
   const [data, setData] = useState<CollaborationSnapshot | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -117,6 +118,37 @@ export function CollaborationView({ snapshot, onRefresh }: Props) {
     } catch (err) {
       toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  if (!hasLicense) {
+    return (
+      <main className="app-shell">
+        <header className="view-header">
+          <span className="section-label">Automation</span>
+          <h1>Multi-Agent Collaboration</h1>
+          <p>Coordinate multiple agents to work together on complex tasks.</p>
+        </header>
+        <section className="panel" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+          <Lock size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
+          <h2 style={{ marginBottom: '0.5rem' }}>Pro or Team License Required</h2>
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.5rem' }}>
+            Multi-agent collaboration — including task decomposition, parallel execution,
+            shared context, inter-agent messaging, and conflict resolution — is available
+            on <strong>Pro</strong> and <strong>Team</strong> plans.
+          </p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+            Single-agent workflows, the dashboard, analytics, and all other features
+            remain fully available on the Free tier.
+          </p>
+          <button className="btn btn-primary" onClick={() => {
+            const tabEvent = new CustomEvent('navigate-tab', { detail: 'settings' });
+            window.dispatchEvent(tabEvent);
+          }}>
+            Upgrade License in Settings
+          </button>
+        </section>
+      </main>
+    );
   }
 
   if (!data) {

@@ -29,7 +29,8 @@ export type LicenseFeature =
   | 'workflow_engine'
   | 'priority_support'
   | 'custom_branding'
-  | 'team_management';
+  | 'team_management'
+  | 'multi_agent_collaboration';
 
 const TIER_LIMITS: Record<LicenseTier, { maxAgents: number; maxRunners: number; maxUsers: number; features: LicenseFeature[] }> = {
   free: {
@@ -49,7 +50,8 @@ const TIER_LIMITS: Record<LicenseTier, { maxAgents: number; maxRunners: number; 
       'plugin_system',
       'data_export',
       'audit_log',
-      'workflow_engine'
+      'workflow_engine',
+      'multi_agent_collaboration'
     ]
   },
   team: {
@@ -66,7 +68,8 @@ const TIER_LIMITS: Record<LicenseTier, { maxAgents: number; maxRunners: number; 
       'workflow_engine',
       'priority_support',
       'custom_branding',
-      'team_management'
+      'team_management',
+      'multi_agent_collaboration'
     ]
   }
 };

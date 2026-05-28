@@ -238,6 +238,13 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     }
     return user;
   }
+
+  function requireFeature(feature: import('./license.js').LicenseFeature): void {
+    if (!license.checkFeature(feature)) {
+      throw new Error(`This feature requires a Pro or Team license. Please upgrade to access ${feature.replace(/_/g, ' ')}.`);
+    }
+  }
+
   const runners: Record<string, Runner> = {
     command: new CommandRunner(),
     openai: new OpenAIRunner(),
@@ -984,12 +991,14 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     },
     createCollabSession(title, description, strategy, missionId, maxConcurrency): CollaborationSession {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       const session = collab.createSession(title, description, strategy, missionId, maxConcurrency);
       recordAudit('collab:create', 'collaboration', session.id, `Created session: ${title}`);
       return session;
     },
     deleteCollabSession(id: string): void {
       requireRole('admin');
+      requireFeature('multi_agent_collaboration');
       collab.deleteSession(id);
       recordAudit('collab:delete', 'collaboration', id, 'Deleted collaboration session');
     },
@@ -998,61 +1007,73 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     },
     updateCollabStatus(id, status): CollaborationSession {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       const session = collab.updateSessionStatus(id, status);
       recordAudit('collab:status', 'collaboration', id, `Status changed to ${status}`);
       return session;
     },
     addCollabSubTask(sessionId, title, description, dependsOn, priority): SubTask {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       const st = collab.addSubTask(sessionId, title, description, dependsOn, priority);
       recordAudit('collab:subtask:add', 'collaboration', sessionId, `Added sub-task: ${title}`);
       return st;
     },
     updateCollabSubTaskStatus(sessionId, subTaskId, status, output): SubTask {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       return collab.updateSubTaskStatus(sessionId, subTaskId, status, output);
     },
     assignCollabSubTask(sessionId, subTaskId, agentId): SubTask {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       const st = collab.assignSubTask(sessionId, subTaskId, agentId);
       recordAudit('collab:subtask:assign', 'collaboration', sessionId, `Assigned ${subTaskId} to ${agentId}`);
       return st;
     },
     deleteCollabSubTask(sessionId, subTaskId): void {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       collab.deleteSubTask(sessionId, subTaskId);
     },
     assignCollabAgent(sessionId, agentId, role): void {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       collab.assignAgent(sessionId, agentId, role);
       recordAudit('collab:agent:assign', 'collaboration', sessionId, `Assigned agent ${agentId} as ${role}`);
     },
     removeCollabAgent(sessionId, agentId): void {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       collab.removeAgent(sessionId, agentId);
     },
     setCollabContext(sessionId, key, value, setBy): void {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       collab.setContext(sessionId, key, value, setBy);
     },
     sendCollabMessage(sessionId, fromAgentId, toAgentId, type, subject, body): AgentMessage {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       return collab.sendMessage(sessionId, fromAgentId, toAgentId, type, subject, body);
     },
     reportCollabConflict(sessionId, type, description, involvedAgentIds): ConflictRecord {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       const conflict = collab.reportConflict(sessionId, type, description, involvedAgentIds);
       recordAudit('collab:conflict', 'collaboration', sessionId, `Conflict: ${description}`);
       return conflict;
     },
     resolveCollabConflict(sessionId, conflictId, resolution): ConflictRecord {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       const conflict = collab.resolveConflict(sessionId, conflictId, resolution);
       recordAudit('collab:conflict:resolve', 'collaboration', sessionId, `Resolved conflict ${conflictId}`);
       return conflict;
     },
     async executeCollabSession(sessionId: string): Promise<void> {
       requireRole('admin', 'operator');
+      requireFeature('multi_agent_collaboration');
       await collab.executeSession(sessionId, (taskId, agentId, prompt) =>
         orch.launchRun(taskId, agentId, prompt)
       );
