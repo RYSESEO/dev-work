@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAppStore } from '../../src/main/db/appStore.js';
 import { createCostIntelligenceService } from '../../src/main/services/costIntelligence.js';
-import type { Run, UsageEvent } from '../../src/shared/domain.js';
+import type { Run } from '../../src/shared/domain.js';
 import { createId, nowIso } from '../../src/shared/domain.js';
 
 describe('cost intelligence service', () => {
