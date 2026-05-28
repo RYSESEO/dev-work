@@ -1,0 +1,45 @@
+name: 'dev-work Agent Reporter'
+description: 'Report CI/CD pipeline results to the dev-work dashboard'
+author: 'RYSESEO'
+
+branding:
+  icon: 'activity'
+  color: 'blue'
+
+inputs:
+  api-key:
+    description: 'dev-work API key (starts with dw_)'
+    required: true
+  host:
+    description: 'dev-work webhook server host'
+    required: false
+    default: '127.0.0.1'
+  port:
+    description: 'dev-work webhook server port'
+    required: false
+    default: '9400'
+  agent-name:
+    description: 'Agent name to report as'
+    required: false
+    default: 'github-actions'
+  event-type:
+    description: 'Event type to send (run.started, run.completed, run.failed, usage.report, heartbeat)'
+    required: false
+    default: 'auto'
+  run-command:
+    description: 'Command to run and track (when event-type is "auto")'
+    required: false
+
+outputs:
+  run-id:
+    description: 'The run ID generated for tracking'
+  event-id:
+    description: 'The event ID returned by the API'
+  duration-ms:
+    description: 'Duration of the tracked command in ms'
+  exit-code:
+    description: 'Exit code of the tracked command'
+
+runs:
+  using: 'node20'
+  main: 'index.js'

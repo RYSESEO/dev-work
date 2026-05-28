@@ -1,0 +1,53 @@
+{
+  "name": "@dev-work/agent-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for reporting agent activity to dev-work dashboard",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/test/*.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dev-work",
+    "agent",
+    "sdk",
+    "ai",
+    "cursor",
+    "copilot",
+    "devin",
+    "observability"
+  ],
+  "author": {
+    "name": "RYSESEO",
+    "email": "heck@ryseseo.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RYSESEO/dev-work",
+    "directory": "packages/agent-sdk"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.8.0"
+  }
+}
