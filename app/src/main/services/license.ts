@@ -30,7 +30,12 @@ export type LicenseFeature =
   | 'priority_support'
   | 'custom_branding'
   | 'team_management'
-  | 'multi_agent_collaboration';
+  | 'multi_agent_collaboration'
+  | 'cloud_sync'
+  | 'sso_auth'
+  | 'sandbox_execution'
+  | 'compliance_reporting'
+  | 'rest_api_server';
 
 const TIER_LIMITS: Record<LicenseTier, { maxAgents: number; maxRunners: number; maxUsers: number; features: LicenseFeature[] }> = {
   free: {
@@ -69,7 +74,12 @@ const TIER_LIMITS: Record<LicenseTier, { maxAgents: number; maxRunners: number; 
       'priority_support',
       'custom_branding',
       'team_management',
-      'multi_agent_collaboration'
+      'multi_agent_collaboration',
+      'cloud_sync',
+      'sso_auth',
+      'sandbox_execution',
+      'compliance_reporting',
+      'rest_api_server'
     ]
   }
 };

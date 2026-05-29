@@ -93,7 +93,15 @@ const snapshot: DashboardSnapshot = {
   apiKeys: [],
   webhookServer: { enabled: false, port: 9400, host: '127.0.0.1' },
   costIntelligence: { budgets: [], forecasts: [], anomalies: [], modelCosts: [], totalSpentToday: 0, totalSpentThisWeek: 0, totalSpentThisMonth: 0 },
-  collaboration: { sessions: [], activeSessions: 0, totalCompleted: 0, totalSubTasks: 0, completedSubTasks: 0, avgCompletionTimeMs: 0 }
+  collaboration: { sessions: [], activeSessions: 0, totalCompleted: 0, totalSubTasks: 0, completedSubTasks: 0, avgCompletionTimeMs: 0 },
+  enterprise: {
+    cloudSync: { enabled: false, endpoint: '', teamId: '', encryptionEnabled: true, syncIntervalSeconds: 300, conflictResolution: 'local_wins', lastSyncAt: null, status: 'disabled', syncedCollections: [] },
+    sso: { enabled: false, provider: 'oidc', issuerUrl: '', clientId: '', callbackUrl: '', autoProvision: false, defaultRole: 'viewer', allowedDomains: [], attributeMapping: {} },
+    sandboxExecutions: [],
+    compliance: { generatedAt: '', framework: 'soc2_type1', overallScore: 0, controls: [], totalControls: 0, compliantControls: 0, gaps: [] },
+    restApi: { enabled: false, port: 8080, host: '127.0.0.1', tlsEnabled: false, tlsCertPath: '', tlsKeyPath: '', corsOrigins: [], rateLimitPerMinute: 60, authRequired: true },
+    restApiStatus: { running: false, port: 8080, host: '127.0.0.1', uptime: 0, requestCount: 0, activeConnections: 0, startedAt: null }
+  }
 };
 
 beforeEach(() => {

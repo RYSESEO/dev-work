@@ -8,7 +8,8 @@ import type {
   Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
   ApiScope, ExternalIntegration, WebhookServerConfig,
   BudgetPeriod, BudgetAction, Budget,
-  CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord
+  CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord,
+  CloudSyncConfig, SsoConfig, SandboxExecution, RestApiConfig
 } from '../shared/domain.js';
 
 let orchestratorPromise: Promise<Orchestrator> | null = null;
@@ -298,5 +299,58 @@ export function registerIpcHandlers(): void {
   );
   ipcMain.handle('collab:execute', async (_event, sessionId: string) =>
     (await getOrchestrator()).executeCollabSession(sessionId)
+  );
+
+  // Enterprise
+  ipcMain.handle('enterprise:snapshot', async () =>
+    (await getOrchestrator()).getEnterprise()
+  );
+  ipcMain.handle('enterprise:cloudSync:get', async () =>
+    (await getOrchestrator()).getCloudSyncConfig()
+  );
+  ipcMain.handle('enterprise:cloudSync:update', async (_event, update: Partial<CloudSyncConfig>) =>
+    (await getOrchestrator()).updateCloudSyncConfig(update)
+  );
+  ipcMain.handle('enterprise:cloudSync:trigger', async () =>
+    (await getOrchestrator()).triggerCloudSync()
+  );
+  ipcMain.handle('enterprise:sso:get', async () =>
+    (await getOrchestrator()).getSsoConfig()
+  );
+  ipcMain.handle('enterprise:sso:update', async (_event, update: Partial<SsoConfig>) =>
+    (await getOrchestrator()).updateSsoConfig(update)
+  );
+  ipcMain.handle('enterprise:sso:authUrl', async () =>
+    (await getOrchestrator()).buildSsoAuthUrl()
+  );
+  ipcMain.handle('enterprise:sandbox:create', async (_event, runId: string, image: string, runtime: 'docker' | 'firecracker', networkPolicy: SandboxExecution['networkPolicy']) =>
+    (await getOrchestrator()).createSandboxExecution(runId, image, runtime, networkPolicy)
+  );
+  ipcMain.handle('enterprise:sandbox:stop', async (_event, executionId: string) =>
+    (await getOrchestrator()).stopSandboxExecution(executionId)
+  );
+  ipcMain.handle('enterprise:sandbox:destroy', async (_event, executionId: string) =>
+    (await getOrchestrator()).destroySandboxExecution(executionId)
+  );
+  ipcMain.handle('enterprise:sandbox:list', async () =>
+    (await getOrchestrator()).listSandboxExecutions()
+  );
+  ipcMain.handle('enterprise:compliance:report', async () =>
+    (await getOrchestrator()).getComplianceReport()
+  );
+  ipcMain.handle('enterprise:restApi:get', async () =>
+    (await getOrchestrator()).getRestApiConfig()
+  );
+  ipcMain.handle('enterprise:restApi:update', async (_event, update: Partial<RestApiConfig>) =>
+    (await getOrchestrator()).updateRestApiConfig(update)
+  );
+  ipcMain.handle('enterprise:restApi:status', async () =>
+    (await getOrchestrator()).getRestApiStatus()
+  );
+  ipcMain.handle('enterprise:restApi:start', async () =>
+    (await getOrchestrator()).startRestApiServer()
+  );
+  ipcMain.handle('enterprise:restApi:stop', async () =>
+    (await getOrchestrator()).stopRestApiServer()
   );
 }

@@ -2,7 +2,8 @@ import type {
   Mission, RunnerProfile, SandboxConfig, Task, User, WorkflowStep, WorkflowTemplate,
   ApiScope, ExternalIntegration, WebhookServerConfig,
   BudgetPeriod, BudgetAction, Budget,
-  CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord
+  CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord,
+  CloudSyncConfig, SsoConfig, SandboxExecution, RestApiConfig
 } from '../../../shared/domain';
 
 export const commandCenterClient = {
@@ -155,5 +156,25 @@ export const commandCenterClient = {
     window.commandCenter.reportCollabConflict(sessionId, type, description, involvedAgentIds),
   resolveCollabConflict: (sessionId: string, conflictId: string, resolution: string) =>
     window.commandCenter.resolveCollabConflict(sessionId, conflictId, resolution),
-  executeCollabSession: (sessionId: string) => window.commandCenter.executeCollabSession(sessionId)
+  executeCollabSession: (sessionId: string) => window.commandCenter.executeCollabSession(sessionId),
+
+  // Enterprise
+  getEnterprise: () => window.commandCenter.getEnterprise(),
+  getCloudSyncConfig: () => window.commandCenter.getCloudSyncConfig(),
+  updateCloudSyncConfig: (update: Partial<CloudSyncConfig>) => window.commandCenter.updateCloudSyncConfig(update),
+  triggerCloudSync: () => window.commandCenter.triggerCloudSync(),
+  getSsoConfig: () => window.commandCenter.getSsoConfig(),
+  updateSsoConfig: (update: Partial<SsoConfig>) => window.commandCenter.updateSsoConfig(update),
+  buildSsoAuthUrl: () => window.commandCenter.buildSsoAuthUrl(),
+  createSandboxExecution: (runId: string, image: string, runtime: 'docker' | 'firecracker', networkPolicy: SandboxExecution['networkPolicy']) =>
+    window.commandCenter.createSandboxExecution(runId, image, runtime, networkPolicy),
+  stopSandboxExecution: (executionId: string) => window.commandCenter.stopSandboxExecution(executionId),
+  destroySandboxExecution: (executionId: string) => window.commandCenter.destroySandboxExecution(executionId),
+  listSandboxExecutions: () => window.commandCenter.listSandboxExecutions(),
+  getComplianceReport: () => window.commandCenter.getComplianceReport(),
+  getRestApiConfig: () => window.commandCenter.getRestApiConfig(),
+  updateRestApiConfig: (update: Partial<RestApiConfig>) => window.commandCenter.updateRestApiConfig(update),
+  getRestApiStatus: () => window.commandCenter.getRestApiStatus(),
+  startRestApiServer: () => window.commandCenter.startRestApiServer(),
+  stopRestApiServer: () => window.commandCenter.stopRestApiServer()
 };

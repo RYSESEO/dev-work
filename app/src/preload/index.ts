@@ -29,7 +29,15 @@ import type {
   SubTaskStatus,
   AgentMessage,
   AgentMessageType,
-  ConflictRecord
+  ConflictRecord,
+  CloudSyncConfig,
+  SyncRecord,
+  SsoConfig,
+  SandboxExecution,
+  ComplianceReport,
+  RestApiConfig,
+  RestApiStatus,
+  EnterpriseSnapshot
 } from '../shared/domain.js';
 
 const commandCenter = {
@@ -211,7 +219,32 @@ const commandCenter = {
     ipcRenderer.invoke('collab:conflict:report', sessionId, type, description, involvedAgentIds),
   resolveCollabConflict: (sessionId: string, conflictId: string, resolution: string): Promise<ConflictRecord> =>
     ipcRenderer.invoke('collab:conflict:resolve', sessionId, conflictId, resolution),
-  executeCollabSession: (sessionId: string): Promise<void> => ipcRenderer.invoke('collab:execute', sessionId)
+  executeCollabSession: (sessionId: string): Promise<void> => ipcRenderer.invoke('collab:execute', sessionId),
+
+  // Enterprise
+  getEnterprise: (): Promise<EnterpriseSnapshot> => ipcRenderer.invoke('enterprise:snapshot'),
+  getCloudSyncConfig: (): Promise<CloudSyncConfig> => ipcRenderer.invoke('enterprise:cloudSync:get'),
+  updateCloudSyncConfig: (update: Partial<CloudSyncConfig>): Promise<CloudSyncConfig> =>
+    ipcRenderer.invoke('enterprise:cloudSync:update', update),
+  triggerCloudSync: (): Promise<SyncRecord[]> => ipcRenderer.invoke('enterprise:cloudSync:trigger'),
+  getSsoConfig: (): Promise<SsoConfig> => ipcRenderer.invoke('enterprise:sso:get'),
+  updateSsoConfig: (update: Partial<SsoConfig>): Promise<SsoConfig> =>
+    ipcRenderer.invoke('enterprise:sso:update', update),
+  buildSsoAuthUrl: (): Promise<string> => ipcRenderer.invoke('enterprise:sso:authUrl'),
+  createSandboxExecution: (runId: string, image: string, runtime: 'docker' | 'firecracker', networkPolicy: SandboxExecution['networkPolicy']): Promise<SandboxExecution> =>
+    ipcRenderer.invoke('enterprise:sandbox:create', runId, image, runtime, networkPolicy),
+  stopSandboxExecution: (executionId: string): Promise<SandboxExecution> =>
+    ipcRenderer.invoke('enterprise:sandbox:stop', executionId),
+  destroySandboxExecution: (executionId: string): Promise<void> =>
+    ipcRenderer.invoke('enterprise:sandbox:destroy', executionId),
+  listSandboxExecutions: (): Promise<SandboxExecution[]> => ipcRenderer.invoke('enterprise:sandbox:list'),
+  getComplianceReport: (): Promise<ComplianceReport> => ipcRenderer.invoke('enterprise:compliance:report'),
+  getRestApiConfig: (): Promise<RestApiConfig> => ipcRenderer.invoke('enterprise:restApi:get'),
+  updateRestApiConfig: (update: Partial<RestApiConfig>): Promise<RestApiConfig> =>
+    ipcRenderer.invoke('enterprise:restApi:update', update),
+  getRestApiStatus: (): Promise<RestApiStatus> => ipcRenderer.invoke('enterprise:restApi:status'),
+  startRestApiServer: (): Promise<void> => ipcRenderer.invoke('enterprise:restApi:start'),
+  stopRestApiServer: (): Promise<void> => ipcRenderer.invoke('enterprise:restApi:stop')
 };
 
 contextBridge.exposeInMainWorld('commandCenter', commandCenter);
