@@ -21,6 +21,7 @@ import { createApiKeyService, type ApiKeyService } from './apiKeys.js';
 import { createWebhookServer, type WebhookServer } from './webhookServer.js';
 import { createCostIntelligenceService, type CostIntelligenceService } from './costIntelligence.js';
 import { createCollaborationService, type CollaborationService } from './collaboration.js';
+import { createEnterpriseService, type EnterpriseService } from './enterprise.js';
 import {
   createId,
   isTerminalRunStatus,
@@ -63,7 +64,15 @@ import {
   type SubTaskStatus,
   type AgentMessage,
   type AgentMessageType,
-  type ConflictRecord
+  type ConflictRecord,
+  type CloudSyncConfig,
+  type SyncRecord,
+  type SsoConfig,
+  type SandboxExecution,
+  type ComplianceReport,
+  type RestApiConfig,
+  type RestApiStatus,
+  type EnterpriseSnapshot
 } from '../../shared/domain.js';
 
 export interface Orchestrator {
@@ -162,6 +171,24 @@ export interface Orchestrator {
   reportCollabConflict(sessionId: string, type: ConflictRecord['type'], description: string, involvedAgentIds: string[]): ConflictRecord;
   resolveCollabConflict(sessionId: string, conflictId: string, resolution: string): ConflictRecord;
   executeCollabSession(sessionId: string): Promise<void>;
+  // Enterprise
+  getEnterprise(): EnterpriseSnapshot;
+  getCloudSyncConfig(): CloudSyncConfig;
+  updateCloudSyncConfig(update: Partial<CloudSyncConfig>): CloudSyncConfig;
+  triggerCloudSync(): SyncRecord[];
+  getSsoConfig(): SsoConfig;
+  updateSsoConfig(update: Partial<SsoConfig>): SsoConfig;
+  buildSsoAuthUrl(): string;
+  createSandboxExecution(runId: string, image: string, runtime: 'docker' | 'firecracker', networkPolicy: SandboxExecution['networkPolicy']): SandboxExecution;
+  stopSandboxExecution(executionId: string): SandboxExecution;
+  destroySandboxExecution(executionId: string): void;
+  listSandboxExecutions(): SandboxExecution[];
+  getComplianceReport(): ComplianceReport;
+  getRestApiConfig(): RestApiConfig;
+  updateRestApiConfig(update: Partial<RestApiConfig>): RestApiConfig;
+  getRestApiStatus(): RestApiStatus;
+  startRestApiServer(): Promise<void>;
+  stopRestApiServer(): Promise<void>;
 }
 
 const noopAuth: AuthService = {
@@ -184,6 +211,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
   const webhookSrv: WebhookServer = createWebhookServer(store, apiKeysSvc);
   const costIntel: CostIntelligenceService = createCostIntelligenceService(store);
   const collab: CollaborationService = createCollaborationService(store);
+  const enterprise: EnterpriseService = createEnterpriseService(store);
   seedDefaults(store);
   log.info('Orchestrator initialized');
 
@@ -444,6 +472,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         webhookServer: webhookSrv.getConfig(),
         costIntelligence: costIntel.getSnapshot(),
         collaboration: collab.getSnapshot(),
+        enterprise: enterprise.getSnapshot(),
         storeVersion: store.getVersion()
       };
     },
@@ -1077,6 +1106,90 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
       await collab.executeSession(sessionId, (taskId, agentId, prompt) =>
         orch.launchRun(taskId, agentId, prompt)
       );
+    },
+    // ── Enterprise ────────────────────────────────────────────────
+    getEnterprise(): EnterpriseSnapshot {
+      return enterprise.getSnapshot();
+    },
+    getCloudSyncConfig(): CloudSyncConfig {
+      return enterprise.cloudSync.getConfig();
+    },
+    updateCloudSyncConfig(update: Partial<CloudSyncConfig>): CloudSyncConfig {
+      requireRole('admin');
+      requireFeature('cloud_sync');
+      const config = enterprise.cloudSync.updateConfig(update);
+      recordAudit('enterprise:cloudSync:update', 'enterprise', 'cloudSync', `Cloud sync ${config.enabled ? 'enabled' : 'disabled'}`);
+      return config;
+    },
+    triggerCloudSync(): SyncRecord[] {
+      requireRole('admin', 'operator');
+      requireFeature('cloud_sync');
+      const records = enterprise.cloudSync.triggerSync();
+      recordAudit('enterprise:cloudSync:trigger', 'enterprise', 'cloudSync', `Synced ${records.length} records`);
+      return records;
+    },
+    getSsoConfig(): SsoConfig {
+      return enterprise.sso.getConfig();
+    },
+    updateSsoConfig(update: Partial<SsoConfig>): SsoConfig {
+      requireRole('admin');
+      requireFeature('sso_auth');
+      const config = enterprise.sso.updateConfig(update);
+      recordAudit('enterprise:sso:update', 'enterprise', 'sso', `SSO ${config.enabled ? 'enabled' : 'disabled'} via ${config.provider}`);
+      return config;
+    },
+    buildSsoAuthUrl(): string {
+      return enterprise.sso.buildAuthUrl();
+    },
+    createSandboxExecution(runId, image, runtime, networkPolicy): SandboxExecution {
+      requireRole('admin', 'operator');
+      requireFeature('sandbox_execution');
+      const exec = enterprise.sandbox.createExecution(runId, image, runtime, networkPolicy);
+      recordAudit('enterprise:sandbox:create', 'enterprise', exec.id, `Sandbox ${runtime} for run ${runId}`);
+      return exec;
+    },
+    stopSandboxExecution(executionId): SandboxExecution {
+      requireRole('admin', 'operator');
+      requireFeature('sandbox_execution');
+      return enterprise.sandbox.stopExecution(executionId);
+    },
+    destroySandboxExecution(executionId): void {
+      requireRole('admin');
+      requireFeature('sandbox_execution');
+      enterprise.sandbox.destroyExecution(executionId);
+      recordAudit('enterprise:sandbox:destroy', 'enterprise', executionId, 'Sandbox destroyed');
+    },
+    listSandboxExecutions(): SandboxExecution[] {
+      return enterprise.sandbox.listExecutions();
+    },
+    getComplianceReport(): ComplianceReport {
+      requireRole('admin');
+      return enterprise.compliance.generateReport();
+    },
+    getRestApiConfig(): RestApiConfig {
+      return enterprise.restApi.getConfig();
+    },
+    updateRestApiConfig(update: Partial<RestApiConfig>): RestApiConfig {
+      requireRole('admin');
+      requireFeature('rest_api_server');
+      const config = enterprise.restApi.updateConfig(update);
+      recordAudit('enterprise:restApi:update', 'enterprise', 'restApi', `REST API ${config.enabled ? 'enabled' : 'disabled'} on port ${config.port}`);
+      return config;
+    },
+    getRestApiStatus(): RestApiStatus {
+      return enterprise.restApi.getStatus();
+    },
+    async startRestApiServer(): Promise<void> {
+      requireRole('admin');
+      requireFeature('rest_api_server');
+      await enterprise.restApi.start();
+      recordAudit('enterprise:restApi:start', 'enterprise', 'restApi', 'REST API server started');
+    },
+    async stopRestApiServer(): Promise<void> {
+      requireRole('admin');
+      requireFeature('rest_api_server');
+      await enterprise.restApi.stop();
+      recordAudit('enterprise:restApi:stop', 'enterprise', 'restApi', 'REST API server stopped');
     }
   };
 

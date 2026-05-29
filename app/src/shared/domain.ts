@@ -19,7 +19,9 @@ export type IdPrefix =
   | 'anomaly'
   | 'collab'
   | 'message'
-  | 'subtask';
+  | 'subtask'
+  | 'sandbox'
+  | 'compliance';
 
 export type MissionStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type TaskStatus = 'draft' | 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
@@ -329,7 +331,12 @@ export type LicenseFeature =
   | 'priority_support'
   | 'custom_branding'
   | 'team_management'
-  | 'multi_agent_collaboration';
+  | 'multi_agent_collaboration'
+  | 'cloud_sync'
+  | 'sso_auth'
+  | 'sandbox_execution'
+  | 'compliance_reporting'
+  | 'rest_api_server';
 
 export interface LicenseStatus {
   tier: LicenseTier;
@@ -513,6 +520,7 @@ export interface DashboardSnapshot {
   webhookServer: WebhookServerConfig;
   costIntelligence: CostIntelligenceSnapshot;
   collaboration: CollaborationSnapshot;
+  enterprise: EnterpriseSnapshot;
   storeVersion?: number;
 }
 
@@ -600,6 +608,116 @@ export interface CollaborationSnapshot {
   totalSubTasks: number;
   completedSubTasks: number;
   avgCompletionTimeMs: number;
+}
+
+// ── Enterprise & Cloud ──────────────────────────────────────────────
+
+export type SyncStatus = 'idle' | 'syncing' | 'error' | 'disabled';
+export type SyncConflictResolution = 'local_wins' | 'remote_wins' | 'manual';
+
+export interface CloudSyncConfig {
+  enabled: boolean;
+  endpoint: string;
+  teamId: string;
+  encryptionEnabled: boolean;
+  syncIntervalSeconds: number;
+  conflictResolution: SyncConflictResolution;
+  lastSyncAt: string | null;
+  status: SyncStatus;
+  syncedCollections: string[];
+}
+
+export interface SyncRecord {
+  id: string;
+  collection: string;
+  recordId: string;
+  action: 'push' | 'pull' | 'conflict';
+  status: 'pending' | 'completed' | 'failed' | 'conflict';
+  syncedAt: string;
+  error: string | null;
+}
+
+export type SsoProvider = 'saml' | 'oidc' | 'oauth2';
+
+export interface SsoConfig {
+  enabled: boolean;
+  provider: SsoProvider;
+  issuerUrl: string;
+  clientId: string;
+  callbackUrl: string;
+  autoProvision: boolean;
+  defaultRole: UserRole;
+  allowedDomains: string[];
+  attributeMapping: Record<string, string>;
+}
+
+export interface SandboxExecution {
+  id: string;
+  runId: string;
+  containerId: string | null;
+  runtime: 'docker' | 'firecracker';
+  image: string;
+  status: 'creating' | 'running' | 'stopped' | 'failed' | 'destroyed';
+  resourceUsage: {
+    cpuPercent: number;
+    memoryMb: number;
+    networkInBytes: number;
+    networkOutBytes: number;
+  };
+  networkPolicy: 'none' | 'restricted' | 'full';
+  startedAt: string;
+  stoppedAt: string | null;
+}
+
+export interface ComplianceControl {
+  id: string;
+  category: 'access_control' | 'data_protection' | 'audit_logging' | 'encryption' | 'availability' | 'change_management';
+  name: string;
+  description: string;
+  status: 'compliant' | 'non_compliant' | 'partial' | 'not_applicable';
+  evidence: string;
+  lastCheckedAt: string;
+}
+
+export interface ComplianceReport {
+  generatedAt: string;
+  framework: 'soc2_type1' | 'soc2_type2';
+  overallScore: number;
+  controls: ComplianceControl[];
+  totalControls: number;
+  compliantControls: number;
+  gaps: string[];
+}
+
+export interface RestApiConfig {
+  enabled: boolean;
+  port: number;
+  host: string;
+  tlsEnabled: boolean;
+  tlsCertPath: string;
+  tlsKeyPath: string;
+  corsOrigins: string[];
+  rateLimitPerMinute: number;
+  authRequired: boolean;
+}
+
+export interface RestApiStatus {
+  running: boolean;
+  port: number;
+  host: string;
+  uptime: number;
+  requestCount: number;
+  activeConnections: number;
+  startedAt: string | null;
+}
+
+export interface EnterpriseSnapshot {
+  cloudSync: CloudSyncConfig;
+  sso: SsoConfig;
+  sandboxExecutions: SandboxExecution[];
+  compliance: ComplianceReport;
+  restApi: RestApiConfig;
+  restApiStatus: RestApiStatus;
 }
 
 export function createId(prefix: IdPrefix): string {

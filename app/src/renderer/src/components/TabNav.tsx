@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   Bot,
+  Building2,
   ClipboardCheck,
   DollarSign,
   GitBranch,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 
-export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'collaboration' | 'marketplace' | 'analytics' | 'costs' | 'team' | 'security' | 'usage' | 'integrations' | 'settings';
+export type AppTab = 'mission' | 'agents' | 'tasks' | 'workflows' | 'collaboration' | 'marketplace' | 'analytics' | 'costs' | 'team' | 'security' | 'usage' | 'integrations' | 'enterprise' | 'settings';
 
 interface NavGroup {
   label: string;
@@ -54,6 +55,7 @@ const navGroups: NavGroup[] = [
       { id: 'team', label: 'Team', icon: Users, shortcut: '8' },
       { id: 'security', label: 'Security', icon: Shield, shortcut: '9' },
       { id: 'integrations', label: 'Integrations', icon: Plug, shortcut: '' },
+      { id: 'enterprise', label: 'Enterprise', icon: Building2, shortcut: '' },
       { id: 'settings', label: 'Settings', icon: Settings, shortcut: '0' }
     ]
   }

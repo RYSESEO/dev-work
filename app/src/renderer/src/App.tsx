@@ -8,6 +8,7 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { CollaborationView } from './components/CollaborationView';
 import { CostIntelligenceView } from './components/CostIntelligenceView';
 import { CostUsageView } from './components/CostUsageView';
+import { EnterpriseView } from './components/EnterpriseView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { IntegrationsView } from './components/IntegrationsView';
 import { MarketplaceView } from './components/MarketplaceView';
@@ -157,6 +158,7 @@ export function App(): JSX.Element {
               {activeTab === 'usage' && <CostUsageView snapshot={snapshot} />}
               {activeTab === 'costs' && <CostIntelligenceView />}
               {activeTab === 'integrations' && <IntegrationsView snapshot={snapshot} onRefresh={refresh} />}
+              {activeTab === 'enterprise' && <EnterpriseView snapshot={snapshot} onRefresh={refresh} />}
               {activeTab === 'settings' && <SettingsView snapshot={snapshot} onRefresh={refresh} themeMode={themeMode} onThemeChange={setThemeMode} />}
             </ErrorBoundary>
           </div>
