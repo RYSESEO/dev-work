@@ -72,7 +72,7 @@ On first run, the orchestrator seeds:
 
 ## Testing Approach
 
-- **Unit tests**: `npm test` runs Vitest (32+ tests across main process and renderer)
+- **Unit tests**: `npm test` runs Vitest (10732+ tests across main process and renderer)
 - **E2E GUI testing**: Launch app with `npm run dev`, use computer tool to click through tabs
 - **Key things to verify per tab**:
   - Marketplace: 6 entries render, install/uninstall toggles badge
