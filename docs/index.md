@@ -34,6 +34,7 @@ npm run dev
 - [Plugin Development](./plugin-development.md) — Extend the platform with lifecycle hooks
 - [API Reference](./api-reference.md) — Complete IPC handler and client API documentation
 - [Configuration](./configuration.md) — Runner profiles, sandbox settings, telemetry, backups
+- [License Keys](./license-keys.md) — Signed key format, issuing keys, key rotation
 
 ## Key Concepts
 
