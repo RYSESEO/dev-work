@@ -130,13 +130,11 @@ curl -s -X POST http://127.0.0.1:8799/webhooks/lemonsqueezy \
 
 ## Deploy
 
-Bundle the entry into a single file (no Electron, ~10 KB):
+Bundle the entry into a single self-contained file (no Electron, ~10 KB):
 
 ```bash
 cd app
-npx esbuild src/main/server/server.ts \
-  --bundle --platform=node --format=esm --target=node20 \
-  --outfile=dist-webhook/server.mjs
+npm run build:webhook   # → dist-webhook/server.mjs
 ```
 
 Then run `node dist-webhook/server.mjs` on any Node host (Fly.io, Railway,
@@ -144,6 +142,20 @@ Render, a VM) with the env vars set as secrets. For Vercel/Lambda, import
 `handleLemonSqueezyWebhook` (or `createWebhookServer`) from the bundle in a
 function handler. For Cloudflare Workers, enable the `nodejs_compat` flag (the
 code uses `node:crypto`).
+
+### Docker
+
+A `Dockerfile.webhook` is provided (build context = `app/`):
+
+```bash
+cd app
+cp webhook.env.example webhook.env   # fill in your secrets (gitignored)
+docker build -f Dockerfile.webhook -t devwork-license-webhook .
+docker run -p 8787:8787 --env-file webhook.env devwork-license-webhook
+```
+
+The runtime image contains only `server.mjs` on `node:20-slim` (no
+`node_modules`, since the bundle uses only Node built-ins).
 
 ### Lemon Squeezy setup
 

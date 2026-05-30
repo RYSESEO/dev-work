@@ -10,7 +10,7 @@ const log = logger.child('license');
  * matching private key is held only by the license issuer and is never shipped.
  */
 export const DEFAULT_LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAkM8uyFcEY70bKWlMG8ezDw/2zqzuMqdlS8xFhsiR/bA=
+MCowBQYDK2VwAyEAzq8AzyBotO7wx/Ir+gi9LeBfTJppvrveHetCU0X6VJg=
 -----END PUBLIC KEY-----
 `;
 
