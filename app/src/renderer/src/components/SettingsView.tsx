@@ -1,7 +1,7 @@
-import { BarChart3, Bell, Database, Edit, Eye, EyeOff, Key, Moon, Plus, Settings, Sun, Trash2 } from 'lucide-react';
+import { BarChart3, Bell, CreditCard, Database, Edit, Eye, EyeOff, ExternalLink, Key, Moon, Plus, Settings, ShoppingCart, Sun, Trash2 } from 'lucide-react';
 import type { ThemeMode } from '../App';
 import { useEffect, useState, type JSX } from 'react';
-import type { AnthropicRunnerProfile, CommandRunnerProfile, CustomHttpRunnerProfile, DashboardSnapshot, OllamaRunnerProfile, OpenAIRunnerProfile, RunnerProfile } from '../../../shared/domain';
+import type { AnthropicRunnerProfile, BillingConfig, CheckoutProvider, CommandRunnerProfile, CustomHttpRunnerProfile, DashboardSnapshot, OllamaRunnerProfile, OpenAIRunnerProfile, PaidTier, RunnerProfile } from '../../../shared/domain';
 import { commandCenterClient } from '../api/client';
 import { useToast } from './ToastProvider';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -58,6 +58,10 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
   const [licenseForm, setLicenseForm] = useState<LicenseFormState>({ key: '', email: '' });
   const [licenseLoading, setLicenseLoading] = useState(false);
 
+  const [billingDraft, setBillingDraft] = useState<BillingConfig>(snapshot.billing);
+  const [billingSaving, setBillingSaving] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<PaidTier | null>(null);
+
   const [notifPrefs, setNotifPrefs] = useState({
     enabled: true,
     onApprovalRequest: true,
@@ -69,6 +73,7 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
   const [webhookDraft, setWebhookDraft] = useState('');
 
   useEffect(() => {
+    void commandCenterClient.getBillingConfig().then(setBillingDraft);
     void commandCenterClient.getNotificationPrefs().then(setNotifPrefs);
     void commandCenterClient.getTelemetryPrefs().then((p) => {
       setTelemetryPrefs(p);
@@ -275,6 +280,41 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
     }
   }
 
+  async function handleUpgrade(tier: PaidTier): Promise<void> {
+    setCheckoutLoading(tier);
+    try {
+      const email = snapshot.currentUser?.email ?? licenseForm.email.trim();
+      await commandCenterClient.startCheckout(tier, email);
+      toast.success(`Opening ${tier} checkout in your browser. Your license key will be emailed after purchase.`);
+    } catch (err) {
+      toast.error(`Checkout failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setCheckoutLoading(null);
+    }
+  }
+
+  async function handleManageBilling(): Promise<void> {
+    try {
+      await commandCenterClient.openBillingManageUrl();
+    } catch (err) {
+      toast.error(`Could not open billing portal: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
+  async function handleBillingSave(): Promise<void> {
+    setBillingSaving(true);
+    try {
+      const saved = await commandCenterClient.updateBillingConfig(billingDraft);
+      setBillingDraft(saved);
+      toast.success('Billing settings saved.');
+      await onRefresh();
+    } catch (err) {
+      toast.error(`Failed to save billing settings: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setBillingSaving(false);
+    }
+  }
+
   async function handleLicenseDeactivate(): Promise<void> {
     setLicenseLoading(true);
     try {
@@ -353,6 +393,100 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
             </div>
           </div>
         )}
+
+        <div className="settings-upgrade">
+          <p className="settings-upgrade-copy">
+            {lic.tier === 'team'
+              ? 'You are on the highest tier — thank you for your support.'
+              : 'Purchase or upgrade your license. Checkout opens in your browser; your key is emailed after purchase, then activate it above.'}
+          </p>
+          <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+            {lic.tier === 'free' && (
+              <button className="primary-button" disabled={checkoutLoading !== null} onClick={() => void handleUpgrade('pro')}>
+                <ShoppingCart size={15} /> {checkoutLoading === 'pro' ? 'Opening...' : 'Buy Pro'}
+              </button>
+            )}
+            {lic.tier !== 'team' && (
+              <button className="primary-button" disabled={checkoutLoading !== null} onClick={() => void handleUpgrade('team')}>
+                <ShoppingCart size={15} /> {checkoutLoading === 'team' ? 'Opening...' : lic.tier === 'pro' ? 'Upgrade to Team' : 'Buy Team'}
+              </button>
+            )}
+            {billingDraft.manageUrl.trim() && (
+              <button className="secondary-button" onClick={() => void handleManageBilling()}>
+                <ExternalLink size={15} /> Manage billing
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Billing & checkout configuration */}
+      <section className="panel">
+        <div className="panel-heading">
+          <span className="panel-icon" aria-hidden="true"><CreditCard size={18} /></span>
+          <div>
+            <h2>Billing &amp; Checkout</h2>
+            <p>Connect a checkout provider so users can purchase licenses. The provider issues keys; they are activated above.</p>
+          </div>
+        </div>
+        <div className="settings-billing-form">
+          <div className="form-row">
+            <label>
+              Provider
+              <select
+                className="text-input"
+                value={billingDraft.provider}
+                onChange={(e) => setBillingDraft((prev) => ({ ...prev, provider: e.target.value as CheckoutProvider }))}
+              >
+                <option value="lemonsqueezy">Lemon Squeezy</option>
+                <option value="paddle">Paddle</option>
+                <option value="gumroad">Gumroad</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+          </div>
+          <div className="form-row">
+            <label>
+              Pro checkout URL
+              <input
+                type="url"
+                className="text-input"
+                placeholder="https://your-store.lemonsqueezy.com/buy/..."
+                value={billingDraft.proCheckoutUrl}
+                onChange={(e) => setBillingDraft((prev) => ({ ...prev, proCheckoutUrl: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="form-row">
+            <label>
+              Team checkout URL
+              <input
+                type="url"
+                className="text-input"
+                placeholder="https://your-store.lemonsqueezy.com/buy/..."
+                value={billingDraft.teamCheckoutUrl}
+                onChange={(e) => setBillingDraft((prev) => ({ ...prev, teamCheckoutUrl: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="form-row">
+            <label>
+              Manage / customer portal URL (optional)
+              <input
+                type="url"
+                className="text-input"
+                placeholder="https://your-store.lemonsqueezy.com/billing"
+                value={billingDraft.manageUrl}
+                onChange={(e) => setBillingDraft((prev) => ({ ...prev, manageUrl: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="form-actions" style={{ marginTop: '0.75rem' }}>
+            <button className="primary-button" disabled={billingSaving} onClick={() => void handleBillingSave()}>
+              {billingSaving ? 'Saving...' : 'Save Billing Settings'}
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Theme */}

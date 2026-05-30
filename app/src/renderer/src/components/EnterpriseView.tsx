@@ -27,9 +27,18 @@ export function EnterpriseView({ snapshot, onRefresh }: Props): JSX.Element {
         <div className="notice" style={{ textAlign: 'center', padding: '3rem' }}>
           <h3>Team License Required</h3>
           <p>Enterprise features require a Team license. Upgrade to unlock cloud sync, SSO, sandbox execution, compliance reporting, and REST API server.</p>
-          <button className="btn btn-primary" onClick={() => toast.warning('Go to Settings → License to activate')}>
-            Upgrade License in Settings
-          </button>
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={() => {
+              void commandCenterClient.startCheckout('team', snapshot.currentUser?.email ?? '')
+                .then(() => toast.success('Opening Team checkout in your browser...'))
+                .catch((err) => toast.error(`Checkout failed: ${err instanceof Error ? err.message : 'Configure checkout in Settings → Billing.'}`));
+            }}>
+              Buy Team License
+            </button>
+            <button className="btn" onClick={() => toast.warning('Go to Settings → License to activate')}>
+              Manage in Settings
+            </button>
+          </div>
         </div>
       </div>
     );
