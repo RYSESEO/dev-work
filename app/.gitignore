@@ -11,3 +11,5 @@ pnpm-debug.log*
 .env
 .env.*
 dist-webhook/
+webhook.env
+*.pem

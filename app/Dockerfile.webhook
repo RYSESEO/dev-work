@@ -1,0 +1,26 @@
+# License signing webhook — self-hosted key issuance.
+# Build context is the `app/` directory:
+#   docker build -f Dockerfile.webhook -t devwork-license-webhook .
+#   docker run -p 8787:8787 --env-file webhook.env devwork-license-webhook
+#
+# Required env (set as secrets, never bake into the image):
+#   LEMON_SQUEEZY_WEBHOOK_SECRET, DEVWORK_LICENSE_PRIVATE_KEY (or _FILE),
+#   LICENSE_TIER_MAPPING. See docs/license-webhook.md for the full list.
+
+FROM node:20-slim AS build
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig*.json ./
+COPY src ./src
+RUN npm run build:webhook
+
+FROM node:20-slim AS runtime
+WORKDIR /srv
+ENV NODE_ENV=production
+ENV PORT=8787
+# Bundled output is self-contained (only Node built-ins), so no node_modules.
+COPY --from=build /build/dist-webhook/server.mjs ./server.mjs
+EXPOSE 8787
+USER node
+CMD ["node", "server.mjs"]
