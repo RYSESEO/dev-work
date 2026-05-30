@@ -1,8 +1,18 @@
 import crypto from 'node:crypto';
 import type { AppStore } from '../db/appStore.js';
 import { logger } from '../logger.js';
+import { isSignedLicenseKey, verifyLicenseKey } from './licenseSigning.js';
 
 const log = logger.child('license');
+
+/**
+ * Ed25519 public key (SPKI PEM) used to verify signed license keys. The
+ * matching private key is held only by the license issuer and is never shipped.
+ */
+export const DEFAULT_LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAkM8uyFcEY70bKWlMG8ezDw/2zqzuMqdlS8xFhsiR/bA=
+-----END PUBLIC KEY-----
+`;
 
 export type LicenseTier = 'free' | 'pro' | 'team';
 
@@ -135,14 +145,59 @@ export function generateLicenseKey(tier: 'pro' | 'team', expiryYear: number): st
   return `${base}${KEY_SEPARATOR}${checksum}`;
 }
 
-export function createLicenseService(store: AppStore): LicenseService {
+export interface LicenseServiceOptions {
+  /** Override the public key used to verify signed keys (for tests). */
+  publicKey?: string;
+}
+
+export function createLicenseService(store: AppStore, options: LicenseServiceOptions = {}): LicenseService {
+  const publicKey = options.publicKey ?? DEFAULT_LICENSE_PUBLIC_KEY;
+
   function getStored(): LicenseInfo | null {
     return store.getById<LicenseInfo & { id: string }>('sandboxConfig', 'license') as LicenseInfo | null;
   }
 
+  function activateSigned(rawKey: string, email: string): LicenseInfo {
+    const payload = verifyLicenseKey(rawKey, publicKey);
+    if (!payload) throw new Error('Invalid or tampered license key.');
+
+    const enteredEmail = email.trim();
+    if (payload.email && payload.email.toLowerCase() !== enteredEmail.toLowerCase()) {
+      throw new Error('This license key is registered to a different email.');
+    }
+
+    const now = new Date();
+    const expiryDate = new Date(payload.expiryYear, 11, 31, 23, 59, 59);
+    if (now > expiryDate) throw new Error('License key has expired.');
+
+    const limits = TIER_LIMITS[payload.tier];
+    const license: LicenseInfo = {
+      id: 'license',
+      key: rawKey,
+      tier: payload.tier,
+      email: payload.email ?? enteredEmail,
+      maxAgents: limits.maxAgents,
+      maxRunners: limits.maxRunners,
+      maxUsers: limits.maxUsers,
+      features: limits.features,
+      validUntil: expiryDate.toISOString(),
+      activatedAt: now.toISOString()
+    };
+
+    store.put('sandboxConfig', 'license', license as LicenseInfo & { id: string });
+    log.info('Signed license activated', { tier: payload.tier, serial: payload.serial, validUntil: license.validUntil });
+    return license;
+  }
+
   return {
     activate(key: string, email: string): LicenseInfo {
-      const parsed = parseLicenseKey(key.trim().toUpperCase());
+      const trimmed = key.trim();
+      if (isSignedLicenseKey(trimmed)) {
+        return activateSigned(trimmed, email);
+      }
+
+      const normalized = trimmed.toUpperCase();
+      const parsed = parseLicenseKey(normalized);
       if (!parsed) throw new Error('Invalid license key format.');
 
       const now = new Date();
@@ -152,7 +207,7 @@ export function createLicenseService(store: AppStore): LicenseService {
       const limits = TIER_LIMITS[parsed.tier];
       const license: LicenseInfo = {
         id: 'license',
-        key: key.trim().toUpperCase(),
+        key: normalized,
         tier: parsed.tier,
         email: email.trim(),
         maxAgents: limits.maxAgents,

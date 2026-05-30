@@ -335,7 +335,7 @@ export function SettingsView({ snapshot, onRefresh, themeMode, onThemeChange }: 
             <div className="form-row">
               <input
                 type="text"
-                placeholder="License key (e.g., DEVWORK-PRO-2026-XXXX-YYYY)"
+                placeholder="License key (e.g., DEVWORK.… signed key)"
                 value={licenseForm.key}
                 onChange={(e) => setLicenseForm((prev) => ({ ...prev, key: e.target.value }))}
                 className="text-input"
