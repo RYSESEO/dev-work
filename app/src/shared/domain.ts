@@ -348,6 +348,25 @@ export interface LicenseStatus {
   activated: boolean;
 }
 
+// ── Billing / Checkout ──────────────────────────────────────────────
+
+export type CheckoutProvider = 'lemonsqueezy' | 'paddle' | 'gumroad' | 'custom';
+
+export type PaidTier = Exclude<LicenseTier, 'free'>;
+
+export interface BillingConfig {
+  provider: CheckoutProvider;
+  proCheckoutUrl: string;
+  teamCheckoutUrl: string;
+  manageUrl: string;
+}
+
+export interface CheckoutSession {
+  provider: CheckoutProvider;
+  tier: PaidTier;
+  url: string;
+}
+
 // ── Cost Intelligence ───────────────────────────────────────────────
 
 export type BudgetPeriod = 'daily' | 'weekly' | 'monthly';
@@ -515,6 +534,7 @@ export interface DashboardSnapshot {
   analytics: AnalyticsSnapshot | null;
   sandboxConfig: SandboxConfig;
   license: LicenseStatus;
+  billing: BillingConfig;
   integrations: ExternalIntegration[];
   apiKeys: Array<Omit<ApiKey, 'keyHash'>>;
   webhookServer: WebhookServerConfig;

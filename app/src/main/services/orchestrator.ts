@@ -13,6 +13,7 @@ import { notifyApprovalRequest, notifyRunComplete, notifyRunFailed } from '../no
 import { findMatchingGrant } from './approvalPolicy.js';
 import { type AuthService, hashPassword, stripPasswordHash } from './auth.js';
 import { createLicenseService } from './license.js';
+import { createBillingService, type BillingService } from './billing.js';
 import { createMarketplaceService } from './marketplace.js';
 import { createPluginRuntime } from './pluginRuntime.js';
 import { createTelemetryService, type TelemetryEvent, type TelemetryPreferences, type TelemetryService } from './telemetry.js';
@@ -34,6 +35,9 @@ import {
   type ApprovalRequest,
   type DashboardSnapshot,
   type LicenseStatus,
+  type BillingConfig,
+  type CheckoutSession,
+  type PaidTier,
   type MarketplaceEntry,
   type Mission,
   type PluginDefinition,
@@ -129,6 +133,10 @@ export interface Orchestrator {
   activateLicense(key: string, email: string): LicenseStatus;
   deactivateLicense(): void;
   getLicenseStatus(): LicenseStatus;
+  // Billing
+  getBillingConfig(): BillingConfig;
+  updateBillingConfig(update: Partial<BillingConfig>): BillingConfig;
+  createCheckoutSession(tier: PaidTier, email: string): CheckoutSession;
   // Telemetry
   getTelemetryPrefs(): TelemetryPreferences;
   setTelemetryPrefs(update: Partial<TelemetryPreferences>): TelemetryPreferences;
@@ -202,6 +210,7 @@ const noopAuth: AuthService = {
 export async function createOrchestrator(store: AppStore, auth: AuthService = noopAuth): Promise<Orchestrator> {
   const log = logger.child('orchestrator');
   const license = createLicenseService(store);
+  const billing: BillingService = createBillingService(store);
   const packagesDir = path.join(process.cwd(), 'packages');
   const marketplace = createMarketplaceService(store, packagesDir);
   const pluginRuntime = createPluginRuntime(store);
@@ -467,6 +476,7 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
         analytics: null,
         sandboxConfig: getSandboxConfig(),
         license: getLicenseStatusObj(),
+        billing: billing.getConfig(),
         integrations: webhookSrv.getIntegrations(),
         apiKeys: apiKeysSvc.list(),
         webhookServer: webhookSrv.getConfig(),
@@ -918,6 +928,18 @@ export async function createOrchestrator(store: AppStore, auth: AuthService = no
     },
     getLicenseStatus(): LicenseStatus {
       return getLicenseStatusObj();
+    },
+    getBillingConfig(): BillingConfig {
+      return billing.getConfig();
+    },
+    updateBillingConfig(update: Partial<BillingConfig>): BillingConfig {
+      requireRole('admin');
+      const config = billing.setConfig(update);
+      recordAudit('update', 'billing', 'billing', `Provider: ${config.provider}`);
+      return config;
+    },
+    createCheckoutSession(tier: PaidTier, email: string): CheckoutSession {
+      return billing.createCheckoutSession(tier, email);
     },
 
     // Telemetry

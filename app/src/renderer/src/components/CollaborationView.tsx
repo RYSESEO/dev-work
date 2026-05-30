@@ -140,12 +140,21 @@ export function CollaborationView({ snapshot, onRefresh }: Props) {
             Single-agent workflows, the dashboard, analytics, and all other features
             remain fully available on the Free tier.
           </p>
-          <button className="btn btn-primary" onClick={() => {
-            const tabEvent = new CustomEvent('navigate-tab', { detail: 'settings' });
-            window.dispatchEvent(tabEvent);
-          }}>
-            Upgrade License in Settings
-          </button>
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={() => {
+              void commandCenterClient.startCheckout('pro', snapshot.currentUser?.email ?? '')
+                .then(() => toast.success('Opening Pro checkout in your browser...'))
+                .catch((err) => toast.error(`Checkout failed: ${err instanceof Error ? err.message : 'Configure checkout in Settings → Billing.'}`));
+            }}>
+              Buy Pro License
+            </button>
+            <button className="btn" onClick={() => {
+              const tabEvent = new CustomEvent('navigate-tab', { detail: 'settings' });
+              window.dispatchEvent(tabEvent);
+            }}>
+              Manage in Settings
+            </button>
+          </div>
         </section>
       </main>
     );

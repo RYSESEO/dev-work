@@ -3,7 +3,8 @@ import type {
   ApiScope, ExternalIntegration, WebhookServerConfig,
   BudgetPeriod, BudgetAction, Budget,
   CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord,
-  CloudSyncConfig, SsoConfig, SandboxExecution, RestApiConfig
+  CloudSyncConfig, SsoConfig, SandboxExecution, RestApiConfig,
+  BillingConfig, PaidTier
 } from '../../../shared/domain';
 
 export const commandCenterClient = {
@@ -85,6 +86,12 @@ export const commandCenterClient = {
   activateLicense: (key: string, email: string) => window.commandCenter.activateLicense(key, email),
   deactivateLicense: () => window.commandCenter.deactivateLicense(),
   getLicenseStatus: () => window.commandCenter.getLicenseStatus(),
+
+  // Billing / checkout
+  getBillingConfig: () => window.commandCenter.getBillingConfig(),
+  updateBillingConfig: (update: Partial<BillingConfig>) => window.commandCenter.updateBillingConfig(update),
+  startCheckout: (tier: PaidTier, email: string) => window.commandCenter.startCheckout(tier, email),
+  openBillingManageUrl: () => window.commandCenter.openBillingManageUrl(),
 
   // Notifications
   getNotificationPrefs: () => window.commandCenter.getNotificationPrefs(),

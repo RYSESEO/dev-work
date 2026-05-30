@@ -7,6 +7,9 @@ import type {
   DashboardSnapshot,
   ExternalIntegration,
   LicenseStatus,
+  BillingConfig,
+  CheckoutSession,
+  PaidTier,
   Mission,
   Run,
   RunnerProfile,
@@ -129,6 +132,14 @@ const commandCenter = {
     ipcRenderer.invoke('license:activate', key, email),
   deactivateLicense: (): Promise<void> => ipcRenderer.invoke('license:deactivate'),
   getLicenseStatus: (): Promise<LicenseStatus> => ipcRenderer.invoke('license:status'),
+
+  // Billing / checkout
+  getBillingConfig: (): Promise<BillingConfig> => ipcRenderer.invoke('billing:getConfig'),
+  updateBillingConfig: (update: Partial<BillingConfig>): Promise<BillingConfig> =>
+    ipcRenderer.invoke('billing:updateConfig', update),
+  startCheckout: (tier: PaidTier, email: string): Promise<CheckoutSession> =>
+    ipcRenderer.invoke('billing:checkout', tier, email),
+  openBillingManageUrl: (): Promise<string> => ipcRenderer.invoke('billing:openManageUrl'),
 
   // Notifications
   getNotificationPrefs: (): Promise<{

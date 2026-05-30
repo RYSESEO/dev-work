@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron';
+import { app, ipcMain, shell } from 'electron';
 import { getNotificationPrefs, setNotificationPrefs, type NotificationPreferences } from './notifications.js';
 import path from 'node:path';
 import { createAppStore } from './db/appStore.js';
@@ -9,7 +9,8 @@ import type {
   ApiScope, ExternalIntegration, WebhookServerConfig,
   BudgetPeriod, BudgetAction, Budget,
   CollaborationSession, SubTask, SubTaskStatus, AgentMessageType, ConflictRecord,
-  CloudSyncConfig, SsoConfig, SandboxExecution, RestApiConfig
+  CloudSyncConfig, SsoConfig, SandboxExecution, RestApiConfig,
+  BillingConfig, PaidTier
 } from '../shared/domain.js';
 
 let orchestratorPromise: Promise<Orchestrator> | null = null;
@@ -173,6 +174,27 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('license:status', async () =>
     (await getOrchestrator()).getLicenseStatus()
   );
+
+  // Billing / checkout
+  ipcMain.handle('billing:getConfig', async () =>
+    (await getOrchestrator()).getBillingConfig()
+  );
+  ipcMain.handle('billing:updateConfig', async (_event, update: Partial<BillingConfig>) =>
+    (await getOrchestrator()).updateBillingConfig(update)
+  );
+  ipcMain.handle('billing:checkout', async (_event, tier: PaidTier, email: string) => {
+    const session = (await getOrchestrator()).createCheckoutSession(tier, email);
+    await shell.openExternal(session.url);
+    return session;
+  });
+  ipcMain.handle('billing:openManageUrl', async () => {
+    const config = (await getOrchestrator()).getBillingConfig();
+    if (!config.manageUrl.trim()) {
+      throw new Error('No billing management URL configured.');
+    }
+    await shell.openExternal(config.manageUrl);
+    return config.manageUrl;
+  });
 
   // Notifications
   ipcMain.handle('notifications:get', () => getNotificationPrefs());
